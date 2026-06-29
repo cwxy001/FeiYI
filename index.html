@@ -1,0 +1,684 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>非遗古镇 - 经营模拟游戏</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css?v74">
+</head>
+<body>
+    <!-- ===== 阶段八：加载进度条（全屏覆盖） ===== -->
+    <div id="loading-screen">
+        <div class="loading-title">正在加载美术资源...</div>
+        <div class="loading-bar-track">
+            <div id="loading-bar" class="loading-bar-fill"></div>
+        </div>
+        <div id="loading-text" class="loading-percent">0%</div>
+    </div>
+
+    <!-- 顶部资源栏 -->
+    <div id="resource-bar">
+        <div class="resource-item">
+            <span class="resource-icon resource-icon-img" data-icon="coin" data-emoji="💰">
+                <img src="assets/images/ui/coin.png" alt="💰" onerror="this.parentNode.classList.add('img-failed');this.style.display='none'">
+            </span>
+            <span class="resource-label">铜钱</span>
+            <span id="coins-value" class="resource-value">0</span>
+        </div>
+        <div class="resource-item">
+            <span class="resource-icon resource-icon-img" data-icon="inspiration" data-emoji="✨">
+                <img src="assets/images/ui/inspiration.png" alt="✨" onerror="this.parentNode.classList.add('img-failed');this.style.display='none'">
+            </span>
+            <span class="resource-label">灵感</span>
+            <span id="inspiration-value" class="resource-value">0</span>
+        </div>
+        <div class="resource-item">
+            <span class="resource-icon resource-icon-img" data-icon="scroll" data-emoji="📜">
+                <img src="assets/images/ui/scroll.png" alt="📜" onerror="this.parentNode.classList.add('img-failed');this.style.display='none'">
+            </span>
+            <span class="resource-label">卷轴</span>
+            <span id="scrolls-value" class="resource-value">0</span>
+        </div>
+        <div class="resource-item">
+            <span class="resource-icon resource-icon-img" data-icon="popularity" data-emoji="⭐">
+                <img src="assets/images/ui/popularity.png" alt="⭐" onerror="this.parentNode.classList.add('img-failed');this.style.display='none'">
+            </span>
+            <span class="resource-label">人气</span>
+            <span id="popularity-value" class="resource-value">0</span>
+        </div>
+        <!-- 阶段八：时间显示 -->
+        <div id="time-display" class="env-display" title="游戏内时间">☀️ 06:00 白天</div>
+        <!-- 阶段八：天气显示 -->
+        <div id="weather-display" class="env-display" title="当前天气">☀️ 晴天</div>
+        <!-- 阶段十：每日任务图标按钮 -->
+        <button id="task-icon-btn" class="task-icon-btn" title="每日任务">
+            <span class="task-icon">📋</span>
+            <span class="task-badge hidden">0</span>
+        </button>
+    </div>
+
+    <!-- 中央地图容器 -->
+    <div id="map-container"></div>
+
+    <!-- 底部按钮栏 -->
+    <div id="bottom-bar">
+        <button id="build-btn" class="action-btn" data-action="build">
+            <span class="btn-icon">🏗️</span>
+            <span class="btn-text">建造</span>
+        </button>
+        <button id="stage-btn" class="action-btn" data-action="stage">
+            <span class="btn-icon">⚔️</span>
+            <span class="btn-text">闯关</span>
+        </button>
+        <button id="collection-btn" class="action-btn" data-action="collection">
+            <span class="btn-icon">📖</span>
+            <span class="btn-text">图鉴</span>
+        </button>
+        <button id="achievements-btn" class="action-btn" data-action="achievements">
+            <span class="btn-icon">🏆</span>
+            <span class="btn-text">成就</span>
+        </button>
+        <button id="leaderboard-btn" class="action-btn" data-action="leaderboard">
+            <span class="btn-icon">👑</span>
+            <span class="btn-text">排行</span>
+        </button>
+        <button id="pvp-btn" class="action-btn" data-action="pvp">
+            <span class="btn-icon">⚔️</span>
+            <span class="btn-text">对决</span>
+        </button>
+        <button id="settings-btn" class="action-btn" data-action="settings">
+            <span class="btn-icon">⚙️</span>
+            <span class="btn-text">设置</span>
+        </button>
+    </div>
+
+    <!-- 建造面板 -->
+    <div id="build-panel" class="modal hidden">
+        <div class="modal-header">
+            <h2>建造工坊</h2>
+            <button class="close-btn" onclick="UI.closeModal('build-panel')">✕</button>
+        </div>
+        <div class="build-tabs">
+            <button class="build-tab active" data-tab="workshop" onclick="Management.switchBuildTab('workshop')">🏗️ 工坊</button>
+            <button class="build-tab" data-tab="decoration" onclick="Management.switchBuildTab('decoration')">🏮 装饰</button>
+        </div>
+        <div class="modal-body">
+            <div id="build-grid" class="build-grid"></div>
+            <div id="decoration-grid" class="build-grid hidden"></div>
+        </div>
+    </div>
+
+    <!-- 工坊详情面板 -->
+    <div id="workshop-detail" class="modal hidden">
+        <div class="modal-header">
+            <h2 id="workshop-title">工坊详情</h2>
+            <button class="close-btn" onclick="UI.closeModal('workshop-detail')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div id="workshop-content"></div>
+        </div>
+    </div>
+
+    <!-- 图鉴面板 -->
+    <div id="collection-panel" class="modal hidden">
+        <div class="modal-header">
+            <h2>非遗图鉴</h2>
+            <button class="close-btn" onclick="UI.closeModal('collection-panel')">✕</button>
+        </div>
+        <div class="modal-body">
+            <!-- 分类标签页 -->
+            <div class="collection-tabs">
+                <button class="collection-tab active" data-category="ich" onclick="Management.switchCollectionTab('ich')">🎭 非物质文化遗产</button>
+                <button class="collection-tab" data-category="material" onclick="Management.switchCollectionTab('material')">🏮 物质文化遗产</button>
+                <button class="collection-tab" data-category="monster" onclick="Management.switchCollectionTab('monster')">👹 怪物图鉴</button>
+            </div>
+            <!-- 卡片网格 -->
+            <div id="collection-grid" class="collection-grid"></div>
+            <!-- 进度条 -->
+            <div id="collection-progress" class="collection-progress">
+                <div class="collection-progress-track">
+                    <div id="collection-progress-fill" class="collection-progress-fill"></div>
+                </div>
+                <div id="collection-progress-text" class="collection-progress-text">0 / 42</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 图鉴详细信息面板 -->
+    <div id="collection-detail" class="modal hidden">
+        <div class="modal-header">
+            <h2 id="collection-detail-title">详情</h2>
+            <button class="close-btn" onclick="UI.closeModal('collection-detail')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div id="collection-detail-content"></div>
+        </div>
+    </div>
+
+    <!-- 解锁动画覆盖层 -->
+    <div id="collection-unlock-anim" class="collection-unlock-anim hidden">
+        <div class="collection-unlock-card" id="collection-unlock-card">
+            <div class="collection-unlock-label" id="collection-unlock-label"></div>
+            <div class="collection-unlock-emoji" id="collection-unlock-emoji"></div>
+            <div class="collection-unlock-name" id="collection-unlock-name"></div>
+        </div>
+    </div>
+
+    <!-- 装饰详情面板 -->
+    <div id="decoration-detail" class="modal hidden">
+        <div class="modal-header">
+            <h2 id="decoration-detail-title">装饰详情</h2>
+            <button class="close-btn" onclick="UI.closeModal('decoration-detail')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div id="decoration-detail-content"></div>
+        </div>
+    </div>
+
+    <!-- 引导提示框 -->
+    <div id="tutorial-tooltip" class="tutorial-tooltip hidden">
+        <div id="tutorial-text" class="tutorial-text"></div>
+        <div class="tutorial-arrow" id="tutorial-arrow"></div>
+        <button class="tutorial-skip-btn" onclick="Management.skipTutorial()">跳过引导</button>
+    </div>
+
+    <!-- 放置模式提示条 -->
+    <div id="placement-hint" class="placement-hint hidden">
+        <span id="placement-hint-text"></span>
+        <button class="placement-cancel-btn" onclick="Management.cancelPlacement()">取消</button>
+    </div>
+
+    <!-- 设置面板 -->
+    <div id="settings-panel" class="modal hidden">
+        <div class="modal-header">
+            <h2>设置</h2>
+            <button class="close-btn" onclick="UI.closeModal('settings-panel')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="settings-row">
+                <label class="settings-label">🔊 主音量</label>
+                <input type="range" id="vol-master" class="settings-slider" min="0" max="100" value="100">
+                <span class="settings-value" id="vol-master-val">100</span>
+            </div>
+            <div class="settings-row">
+                <label class="settings-label">🎵 背景音乐</label>
+                <input type="range" id="vol-bgm" class="settings-slider" min="0" max="100" value="50">
+                <span class="settings-value" id="vol-bgm-val">50</span>
+            </div>
+            <div class="settings-row">
+                <label class="settings-label">🔔 音效</label>
+                <input type="range" id="vol-sfx" class="settings-slider" min="0" max="100" value="80">
+                <span class="settings-value" id="vol-sfx-val">80</span>
+            </div>
+            <!-- 阶段十二：主题切换 -->
+            <div class="settings-row">
+                <label class="settings-label">🌗 主题</label>
+                <button id="theme-toggle-btn" class="theme-toggle-btn" title="切换亮色/暗色主题">切换主题</button>
+                <span class="settings-value" id="theme-current-val">亮色</span>
+            </div>
+            <!-- 阶段十二：广告奖励入口 -->
+            <div class="settings-row ad-entry-row">
+                <label class="settings-label">🎬 看广告</label>
+                <button id="ad-double-production-btn" class="ad-reward-btn" title="看广告获得30分钟双倍产出">双倍产出 <span class="ad-remaining" data-reward="double-production"></span></button>
+                <button id="ad-restore-token-btn" class="ad-reward-btn" title="看广告恢复1个进攻令">恢复进攻令 <span class="ad-remaining" data-reward="restore-pvp-token"></span></button>
+                <button id="ad-gain-popularity-btn" class="ad-reward-btn" title="看广告获得100人气">获得人气 <span class="ad-remaining" data-reward="gain-popularity"></span></button>
+            </div>
+            <div class="settings-row ad-entry-row">
+                <label class="settings-label">📊 今日</label>
+                <span class="ad-total-info">已观看 <strong id="ad-count-today">0</strong>/10 次</span>
+                <button id="ad-debug-status-btn" class="ad-debug-btn" title="调试查看广告状态">状态</button>
+            </div>
+            <!-- 存档导出/导入（跨源数据同步） -->
+            <div class="settings-row ad-entry-row">
+                <label class="settings-label">💾 存档</label>
+                <button id="save-export-btn" class="ad-reward-btn" title="导出存档为编码字符串，可在另一个浏览器源粘贴导入">导出存档</button>
+                <button id="save-import-btn" class="ad-reward-btn" title="从另一个浏览器源导入存档">导入存档</button>
+            </div>
+            <div id="save-io-area" class="save-io-area hidden">
+                <textarea id="save-io-text" class="save-io-text" rows="3" placeholder="导出的存档将显示在这里；导入时将存档码粘贴到这里后点击确认"></textarea>
+                <div class="save-io-actions">
+                    <button id="save-copy-btn" class="ad-reward-btn">复制</button>
+                    <button id="save-confirm-import-btn" class="ad-reward-btn">确认导入</button>
+                    <button id="save-cancel-btn" class="ad-debug-btn">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast容器 -->
+    <div id="toast-container"></div>
+
+    <!-- ===== 阶段三：塔防战斗界面 ===== -->
+    <div id="td-screen" class="hidden">
+        <!-- 关卡选择视图 -->
+        <div id="td-level-select" class="hidden"></div>
+
+        <!-- 阶段九：无尽模式 HUD（默认隐藏，由 JS 切换） -->
+        <div id="td-endless-hud" class="endless-hud hidden"></div>
+        <!-- 阶段九：特殊关卡限制横幅（默认隐藏，由 JS 切换） -->
+        <div id="special-restriction-banner" class="special-banner hidden"></div>
+        <!-- 阶段十一：PVP 专属 HUD（默认隐藏，由 JS 切换） -->
+        <div id="pvp-hud" class="pvp-hud hidden"></div>
+
+        <!-- 顶部信息栏 -->
+        <div id="td-top-bar" class="hidden">
+            <div class="td-info">关卡：<span id="td-level-name">—</span></div>
+            <div class="td-info">波次：<span id="td-wave">0/0</span></div>
+            <div class="td-info">主灯：<span id="td-lives">20</span></div>
+            <div class="td-controls">
+                <button id="td-pause-btn">暂停</button>
+                <button id="td-speed-btn">1x</button>
+                <button id="td-exit-btn">退出</button>
+            </div>
+        </div>
+
+        <!-- 准备阶段提示 -->
+        <div id="td-prep-banner" class="hidden">
+            <span id="td-prep-text">准备阶段</span>
+            <span id="td-prep-timer">5</span>
+            <button id="td-prep-start">立即开始</button>
+        </div>
+
+        <!-- 战场画布 -->
+        <canvas id="td-canvas" class="hidden"></canvas>
+
+        <!-- BOSS 血条 -->
+        <div id="td-boss-bar" class="hidden">
+            <div id="td-boss-name">BOSS</div>
+            <div class="td-boss-hp-track"><div id="td-boss-hp-fill"></div></div>
+        </div>
+
+        <!-- 人气条 + 抽卡按钮（卡槽右侧） -->
+        <div id="td-popularity-bar" class="hidden">
+            <div class="td-pop-label">人气</div>
+            <div id="td-popularity-track">
+                <div id="td-popularity-fill"></div>
+            </div>
+            <div id="td-popularity-text">0/50</div>
+            <button id="td-draw-btn" class="td-draw-btn">抽卡</button>
+            <button id="td-free-draw-btn" class="td-free-draw-btn" title="看广告免费抽卡（每日2次）">🎬免费</button>
+        </div>
+
+        <!-- 手牌区 -->
+        <div id="td-hand-area" class="hidden"></div>
+
+        <!-- 塔信息面板 -->
+        <div id="td-tower-info" class="hidden"></div>
+
+        <!-- 重复牌选择弹窗 -->
+        <div id="td-card-choice" class="hidden"></div>
+
+        <!-- 抽牌动画 -->
+        <div id="td-draw-anim" class="hidden"></div>
+
+        <!-- 结算弹窗 -->
+        <div id="td-result" class="hidden"></div>
+
+        <!-- ===== 阶段七：遗物系统 DOM ===== -->
+        <!-- 遗物选择面板（关卡开始三选一/四选一） -->
+        <div id="relic-select-panel" class="relic-overlay hidden">
+            <div class="relic-select-box">
+                <h2 class="relic-select-title">选择遗物</h2>
+                <div id="relic-select-cards" class="relic-cards"></div>
+            </div>
+        </div>
+
+        <!-- 遗物获取面板（通关后永久遗物） -->
+        <div id="relic-reward-panel" class="relic-overlay hidden">
+            <div id="relic-reward-card" class="relic-reward-box"></div>
+            <button id="relic-reward-confirm" class="relic-reward-btn">收下</button>
+        </div>
+
+        <!-- 战斗中遗物栏（右上角生效遗物图标） -->
+        <div id="td-active-relics" class="hidden"></div>
+    </div>
+
+    <!-- 阶段十：每日任务面板 -->
+    <div id="daily-tasks-panel" class="modal-panel hidden">
+        <div class="modal-header">
+            <h2>每日任务</h2>
+            <button class="close-btn" data-target="daily-tasks-panel">✕</button>
+        </div>
+        <div class="modal-body">
+            <div id="daily-tasks-list"></div>
+            <div class="weekly-activity">
+                <h3>本周活跃度</h3>
+                <div id="weekly-activity-bar"></div>
+                <div id="weekly-rewards-list"></div>
+            </div>
+            <div id="refresh-countdown" class="refresh-countdown"></div>
+        </div>
+    </div>
+
+    <!-- 阶段十：成就面板 -->
+    <div id="achievements-panel" class="modal-panel hidden">
+        <div class="modal-header">
+            <h2>成就殿堂</h2>
+            <button class="close-btn" data-target="achievements-panel">✕</button>
+        </div>
+        <div class="achievement-tabs">
+            <button class="tab-btn active" data-category="business">经营</button>
+            <button class="tab-btn" data-category="battle">战斗</button>
+            <button class="tab-btn" data-category="collection">收集</button>
+            <button class="tab-btn" data-category="special">特殊</button>
+        </div>
+        <div class="modal-body">
+            <div id="achievement-list"></div>
+            <div id="achievement-stats" class="achievement-stats"></div>
+        </div>
+    </div>
+
+    <!-- 阶段十：排行榜面板 -->
+    <div id="leaderboard-panel" class="modal-panel hidden">
+        <div class="modal-header">
+            <h2>排行榜</h2>
+            <button class="close-btn" data-target="leaderboard-panel">✕</button>
+        </div>
+        <div class="leaderboard-tabs">
+            <button class="tab-btn active" data-category="level-speed">通关速度</button>
+            <button class="tab-btn" data-category="endless-wave">无尽波次</button>
+            <button class="tab-btn" data-category="management-score">经营繁荣</button>
+            <button class="tab-btn" data-category="collection-rate">图鉴收集</button>
+        </div>
+        <div class="modal-body">
+            <div id="ranking-list" class="ranking-list"></div>
+            <div id="player-rank-external" class="player-rank-external hidden"></div>
+            <p class="refresh-tip">每周一刷新排名</p>
+        </div>
+    </div>
+
+    <!-- 阶段十：成就解锁通知容器 -->
+    <div id="achievement-notification" class="achievement-notification"></div>
+
+    <!-- ===== 阶段十一：PVP系统面板 ===== -->
+    <div id="pvp-panel" class="modal-panel hidden">
+        <div class="modal-header">
+            <h2>非遗对决</h2>
+            <button class="close-btn" data-target="pvp-panel">✕</button>
+        </div>
+        <div class="pvp-tabs">
+            <button class="tab-btn active" data-tab="attack-defense">攻守轮换</button>
+            <button class="tab-btn" data-tab="sync-battle">同步对战</button>
+            <button class="tab-btn" data-tab="defense-race">防守竞赛</button>
+            <button class="tab-btn" data-tab="log">战报</button>
+        </div>
+        <div class="modal-body">
+            <!-- 出战牌组选择（三模式共用） -->
+            <div class="pvp-shared-deck">
+                <h3 class="pvp-section-title">出战牌组选择</h3>
+                <div class="attack-deck-config" id="attack-deck-config"></div>
+                <div class="deck-count" id="attack-deck-count">已选 0/5-8</div>
+            </div>
+            <!-- 攻守轮换标签页 -->
+            <div id="pvp-attack-defense-tab" class="pvp-tab-content">
+                <div class="pvp-tokens" id="pvp-tokens-display"></div>
+                <div class="mode-description">玩家A放塔防守，玩家B放怪进攻，限时3分钟，攻守轮换</div>
+                <button id="match-opponent-btn" class="action-btn">匹配对手</button>
+                <div class="opponent-info hidden" id="opponent-info"></div>
+                <button id="start-attack-defense-btn" class="action-btn hidden">开始攻守轮换</button>
+            </div>
+            <!-- 同步对战标签页 -->
+            <div id="pvp-sync-battle-tab" class="pvp-tab-content hidden">
+                <div class="pvp-tokens" id="pvp-tokens-display-sync"></div>
+                <div class="mode-description">双方同时防守各自主灯，中间出怪互攻，谁先攻破对方谁赢</div>
+                <button id="match-opponent-sync-btn" class="action-btn">匹配对手</button>
+                <div class="opponent-info hidden" id="opponent-info-sync"></div>
+                <button id="start-sync-battle-btn" class="action-btn hidden">开始同步对战</button>
+            </div>
+            <!-- 防守竞赛标签页 -->
+            <div id="pvp-defense-race-tab" class="pvp-tab-content hidden">
+                <div class="mode-description">双方同时防守无限波次，比谁守得久（不需进攻令）</div>
+                <button id="match-opponent-race-btn" class="action-btn">匹配对手</button>
+                <div class="opponent-info hidden" id="opponent-info-race"></div>
+                <button id="start-defense-race-btn" class="action-btn hidden">开始防守竞赛</button>
+            </div>
+            <!-- 战报标签页 -->
+            <div id="pvp-log-tab" class="pvp-tab-content hidden">
+                <div id="pvp-stats-display"></div>
+                <h3 class="pvp-section-title">攻守轮换战报</h3>
+                <div class="battle-log-list" id="attack-defense-log-list"></div>
+                <h3 class="pvp-section-title">同步对战战报</h3>
+                <div class="battle-log-list" id="sync-battle-log-list"></div>
+                <h3 class="pvp-section-title">防守竞赛战报</h3>
+                <div class="battle-log-list" id="defense-race-log-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 阶段十一：PVP结算面板 -->
+    <div id="pvp-result-panel" class="modal-panel hidden">
+        <div class="modal-header">
+            <h2 id="pvp-result-title">对战结果</h2>
+            <button class="close-btn" data-target="pvp-result-panel">✕</button>
+        </div>
+        <div class="modal-body">
+            <div id="pvp-result-content"></div>
+        </div>
+    </div>
+
+    <!-- JS引入 -->
+    <script src="js/data.js?v74"></script>
+    <script src="js/game-state.js?v74"></script>
+    <script src="js/ui.js?v74"></script>
+    <script src="js/isometric-map.js?v74"></script>
+    <script src="js/management.js?v74"></script>
+    <script src="js/tower-defense.js?v74"></script>
+    <script src="js/data-integration.js?v74"></script>
+    <!-- 阶段八：lottie-web（LottieFx 依赖，CDN 失败时 LottieFx 自动回退 CSS） -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
+    <!-- Lottie JSON 内联数据（解决 file:// 协议下 CORS 限制） -->
+    <script src="js/lottie-data.js?v74"></script>
+    <script src="js/effects-engine.js?v74"></script>
+    <script src="js/audio.js?v74"></script>
+    <script src="js/relic-system.js?v74"></script>
+    <script src="js/asset-loader.js?v74"></script>
+    <!-- 阶段十：留存系统（依赖 game-state.js / relic-system.js） -->
+    <script src="js/retention-system.js?v74"></script>
+    <script src="js/leaderboard.js?v74"></script>
+    <!-- 阶段十一：PVP系统（依赖 game-state.js / tower-defense.js / management.js） -->
+    <script src="js/pvp-system.js?v74"></script>
+    <script src="js/analytics.js?v74"></script>
+    <script src="js/performance.js?v74"></script>
+    <script src="js/ad-system.js?v74"></script>
+    <script>
+        // ===== 阶段八：先预加载美术资产，再初始化游戏 =====
+        console.log('index.html 内联脚本执行');
+        console.log('window.IsometricMap 状态:', typeof window.IsometricMap, typeof window.IsometricMap?.getBuildings);
+
+        function startGame() {
+            // 阶段十二：埋点 - 游戏启动 + 漏斗首步
+            try {
+                if (window.Analytics) {
+                    Analytics.trackEvent('game_start', { ts: Date.now() });
+                    Analytics.trackFunnel('enter_game');
+                }
+            } catch (e) { console.warn('[阶段十二] Analytics 启动埋点失败:', e); }
+
+            if (window.Management) {
+                const mgmt = new Management();
+                mgmt.init();
+                window._managementInstance = mgmt;
+                console.log('Management 初始化完成');
+            } else {
+                console.error('Management 类未加载');
+            }
+            // 阶段十一：初始化PVP系统（AI玩家 + 通用PVP + 进攻令恢复）
+            try {
+                if (window.AIPlayerSystem) {
+                    AIPlayerSystem.init();
+                    AIPlayerSystem.updateAIActivity();
+                    AIPlayerSystem.startActivityTimer();
+                }
+                if (window.PvpSystem) {
+                    PvpSystem.init();
+                    PvpSystem.checkTokenRecovery();
+                }
+                // 页面可见性变化时重启AI活跃定时器（可见5分钟/隐藏15分钟）
+                document.addEventListener('visibilitychange', () => {
+                    if (window.AIPlayerSystem) AIPlayerSystem.startActivityTimer();
+                });
+                console.log('[阶段十一] PVP系统初始化完成');
+            } catch (e) {
+                console.error('[阶段十一] PVP系统初始化失败:', e);
+            }
+            // 阶段十二：初始化广告入口按钮 + 主题切换 + 存档导出导入
+            try {
+                _initAdUiBindings();
+                _initThemeToggle();
+                _initSaveIO();
+                console.log('[阶段十二] 广告、主题、存档系统初始化完成');
+            } catch (e) {
+                console.error('[阶段十二] 初始化失败:', e);
+            }
+        }
+
+        // 阶段十二：广告入口按钮绑定
+        function _initAdUiBindings() {
+            const bind = (id, rewardType, successMsg) => {
+                const btn = document.getElementById(id);
+                if (!btn) return;
+                btn.addEventListener('click', () => {
+                    if (!window.AdSystem) return;
+                    AdSystem.showRewardAd(rewardType, (msg) => {
+                        // 双倍产出/进攻令/人气奖励由 AdSystem 内部处理
+                        // 免费抽卡由调用方在 success 回调中处理（此处不涉及）
+                    }, (reason) => {
+                        if (window.UI && UI.showToast) UI.showToast(reason, 1800, 'warn');
+                    });
+                    _refreshAdUi();
+                });
+            };
+            bind('ad-double-production-btn', 'double-production');
+            bind('ad-restore-token-btn', 'restore-pvp-token');
+            bind('ad-gain-popularity-btn', 'gain-popularity');
+
+            const debugBtn = document.getElementById('ad-debug-status-btn');
+            if (debugBtn) {
+                debugBtn.addEventListener('click', () => {
+                    if (!window.AdSystem) return;
+                    const s = AdSystem.getStatus();
+                    console.log('[AdSystem] 状态:', s);
+                    if (window.UI && UI.showToast) {
+                        UI.showToast(`今日${s.adCount}/${s.adLimit} 双倍${s.rewardCounts['double-production']}/1 进攻令${s.rewardCounts['restore-pvp-token']}/3 人气${s.rewardCounts['gain-popularity']}/3`, 3500, 'info');
+                    }
+                });
+            }
+            _refreshAdUi();
+            // 每 5 秒刷新一次广告入口显示（用于倒计时和次数刷新）
+            setInterval(_refreshAdUi, 5000);
+        }
+
+        function _refreshAdUi() {
+            if (!window.AdSystem) return;
+            const cnt = document.getElementById('ad-count-today');
+            if (cnt) cnt.textContent = AdSystem.getAdCount();
+            document.querySelectorAll('.ad-remaining').forEach(el => {
+                const t = el.getAttribute('data-reward');
+                const remain = AdSystem.getRewardRemaining(t);
+                el.textContent = remain > 0 ? `(${remain})` : '(已满)';
+                el.style.color = remain > 0 ? '#FFD700' : '#888';
+            });
+        }
+
+        // 阶段十二：主题切换（亮色/暗色）
+        function _initThemeToggle() {
+            const btn = document.getElementById('theme-toggle-btn');
+            const val = document.getElementById('theme-current-val');
+            if (!btn) return;
+            // 读取存储的主题
+            let theme = 'light';
+            try { theme = localStorage.getItem('feiyi-theme') || 'light'; } catch (e) { /* ignore */ }
+            document.documentElement.setAttribute('data-theme', theme);
+            if (val) val.textContent = theme === 'dark' ? '暗色' : '亮色';
+            btn.addEventListener('click', () => {
+                const cur = document.documentElement.getAttribute('data-theme') || 'light';
+                const next = cur === 'light' ? 'dark' : 'light';
+                document.documentElement.setAttribute('data-theme', next);
+                try { localStorage.setItem('feiyi-theme', next); } catch (e) { /* ignore */ }
+                if (val) val.textContent = next === 'dark' ? '暗色' : '亮色';
+                if (window.UI && UI.showToast) UI.showToast(next === 'dark' ? '已切换暗色主题' : '已切换亮色主题', 1500, 'info');
+            });
+        }
+
+        // 存档导出/导入（跨源数据同步）
+        function _initSaveIO() {
+            const exportBtn = document.getElementById('save-export-btn');
+            const importBtn = document.getElementById('save-import-btn');
+            const area = document.getElementById('save-io-area');
+            const text = document.getElementById('save-io-text');
+            const copyBtn = document.getElementById('save-copy-btn');
+            const confirmBtn = document.getElementById('save-confirm-import-btn');
+            const cancelBtn = document.getElementById('save-cancel-btn');
+            if (!exportBtn || !importBtn) return;
+
+            let mode = ''; // 'export' or 'import'
+
+            exportBtn.addEventListener('click', () => {
+                if (!window.GameState) return;
+                const b64 = GameState.exportSave();
+                if (text) text.value = b64;
+                if (area) area.classList.remove('hidden');
+                mode = 'export';
+                if (text) text.readOnly = true;
+                if (copyBtn) copyBtn.style.display = '';
+                if (confirmBtn) confirmBtn.style.display = 'none';
+            });
+
+            importBtn.addEventListener('click', () => {
+                if (text) { text.value = ''; text.readOnly = false; }
+                if (area) area.classList.remove('hidden');
+                mode = 'import';
+                if (copyBtn) copyBtn.style.display = 'none';
+                if (confirmBtn) confirmBtn.style.display = '';
+                if (text) text.focus();
+            });
+
+            if (copyBtn) {
+                copyBtn.addEventListener('click', () => {
+                    if (!text) return;
+                    text.select();
+                    try {
+                        document.execCommand('copy');
+                        if (window.UI && UI.showToast) UI.showToast('存档已复制到剪贴板', 2000, 'success');
+                    } catch (e) {
+                        if (window.UI && UI.showToast) UI.showToast('复制失败，请手动选中复制', 3000, 'warn');
+                    }
+                });
+            }
+
+            if (confirmBtn) {
+                confirmBtn.addEventListener('click', () => {
+                    if (!text || !window.GameState) return;
+                    const val = text.value.trim();
+                    if (!val) { alert('请粘贴存档码'); return; }
+                    GameState.importSave(val);
+                });
+            }
+
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', () => {
+                    if (area) area.classList.add('hidden');
+                    if (text) text.value = '';
+                });
+            }
+        }
+
+        if (window.AssetLoader) {
+            AssetLoader.initProgressUI();
+            AssetLoader.preloadAll().then(() => {
+                console.log('[AssetLoader] 预加载完成，成功 ' +
+                    Array.from(AssetLoader._loadedOk).length + '/' + AssetLoader.totalCount);
+                AssetLoader.hideLoadingScreen();
+                startGame();
+            });
+        } else {
+            // AssetLoader 未加载，直接启动（回退模式）
+            console.warn('AssetLoader 未加载，以回退模式启动');
+            startGame();
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "feiyi-guzhen",
+  "version": "12.0.0",
+  "description": "非遗古镇 — 非遗文化主题的等距经营模拟 + 塔防游戏",
+  "scripts": {
+    "dev": "npx http-server -p 8080 -c-1",
+    "serve": "npx http-server -p 8080 -c-1",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "vitest": "^1.6.0",
+    "jsdom": "^24.0.0"
+  }
+}
