@@ -302,7 +302,7 @@
             this.level = Math.max(1, Math.min(MAX_TOWER_LEVEL, baseLevel || 1));
             this.baseDamage = card.damage;
             this.baseRange = card.range;
-            this.attackSpeed = card.attackSpeed;
+            this._baseAttackSpeed = card.attackSpeed;  // 基础攻速，getter 按等级成长
             this.lastAttackTime = 0;
             this.target = null;
             this.stunnedUntil = 0;
@@ -322,14 +322,18 @@
         }
 
         get damage() {
-            let m = Math.pow(1.2, this.level - 1);
+            let m = Math.pow(1.35, this.level - 1);  // 增强：1.2→1.35，满级3.32x
             if (window.RelicSystem) m *= RelicSystem.getDamageMul(this.heritageId);
             return Math.round(this.baseDamage * m);
         }
         get range() {
-            let m = Math.pow(1.1, this.level - 1);
+            let m = Math.pow(1.15, this.level - 1);  // 增强：1.1→1.15，满级1.75x
             if (window.RelicSystem) m *= RelicSystem.getRangeMul(this.heritageId);
             return this.baseRange * m;
+        }
+        get attackSpeed() {
+            let m = Math.pow(1.1, this.level - 1);   // 新增：攻速成长，满级1.46x
+            return this._baseAttackSpeed * m;
         }
         get critRate() {
             let r = this.baseCritRate;
@@ -518,6 +522,10 @@
             this.dodge = 0;
             this.lampDamage = opts.lampDamage || 1;
             this.data = data;
+            // 动画状态：弹跳/摇摆/受击闪烁
+            this._animTime = 0;       // 累计动画时间
+            this._hitFlash = 0;       // 受击闪烁计时器（秒）
+            this._bouncePhase = 0;    // 弹跳相位
             if (this.isBoss) {
                 this.skillTimer = this._skillCooldown();
                 this.invisibleTimer = 0;
@@ -555,6 +563,8 @@
                 damage -= absorbed;
             }
             this.hp -= damage;
+            // 受击闪烁动画
+            if (damage > 0) this._hitFlash = 0.15;
             // 阶段六：受击音效（节流，避免高频刷屏）
             if (window.AudioManager && damage > 0) {
                 const now = performance.now() / 1000;
@@ -573,6 +583,9 @@
 
         move(dt) {
             if (!this.alive || this.reachedEnd) return;
+            // 更新动画时间（弹跳/摇摆）
+            this._animTime += dt;
+            if (this._hitFlash > 0) this._hitFlash -= dt;
             if (this.pathIndex >= this.lane.length - 1) {
                 this.reachedEnd = true;
                 return;
@@ -581,7 +594,9 @@
             const dx = target.x - this.x;
             const dy = target.y - this.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
-            const step = this.speed * 60 * dt;
+            // 减速效果生效
+            const speedMul = this.slow > 0 ? (1 - this.slow) : 1;
+            const step = this.speed * 60 * dt * speedMul;
             if (dist <= step) {
                 this.x = target.x;
                 this.y = target.y;
@@ -589,6 +604,11 @@
             } else {
                 this.x += (dx / dist) * step;
                 this.y += (dy / dist) * step;
+            }
+            // 减速计时器递减
+            if (this.slowTimer > 0) {
+                this.slowTimer -= dt;
+                if (this.slowTimer <= 0) this.slow = 0;
             }
         }
     }
@@ -779,17 +799,15 @@
             });
             html += '</div>';
 
-            // 末页：无尽挑战 + 本周特殊挑战入口
-            if (pageIdx === totalPages - 1) {
-                const weeklySpecial = this._getWeeklySpecial();
-                const spCfg = (window.GameData && window.GameData.SPECIAL_LEVELS || {})[weeklySpecial];
-                html += '<div class="td-ls-footer">';
-                html += `<button class="endless-entry-btn" id="td-endless-entry">无尽挑战<span class="endless-best">最高：第 ${endlessRecord} 波</span></button>`;
-                if (spCfg) {
-                    html += `<button class="special-entry-btn" id="td-special-entry">${spCfg.icon} 本周特殊挑战：${spCfg.name.replace(/ · .+$/, '')}<span class="special-reward-hint">奖励预览</span></button>`;
-                }
-                html += '</div>';
+            // 每页底部都显示无尽挑战 + 特殊挑战快捷入口
+            const weeklySpecial = this._getWeeklySpecial();
+            const spCfg = (window.GameData && window.GameData.SPECIAL_LEVELS || {})[weeklySpecial];
+            html += '<div class="td-ls-footer">';
+            html += `<button class="endless-entry-btn" id="td-endless-entry">无尽挑战<span class="endless-best">最高：第 ${endlessRecord} 波</span></button>`;
+            if (spCfg) {
+                html += `<button class="special-entry-btn" id="td-special-entry">${spCfg.icon} 本周特殊：${spCfg.name.replace(/ · .+$/, '')}<span class="special-reward-hint">奖励预览</span></button>`;
             }
+            html += '</div>';
 
             html += '<div class="td-ls-hint">点击已解锁关卡进入战斗。需先在经营模式建造工坊以获得防御塔卡牌。</div>';
             container.innerHTML = html;
@@ -1526,11 +1544,12 @@
                         this._addFloat(boss.x, boss.y - 20, '冲锋!', '#8B4513');
                     }
                     break;
-                case 'boss-sheep': // 治疗+护盾
-                    boss.shield = Math.max(boss.shield, 50);
+                case 'boss-sheep': // 治疗+护盾（修复：护盾改为周期性补盾，非每帧）
                     boss.skillTimer -= dt;
                     if (boss.skillTimer <= 0) {
                         boss.skillTimer = 3;
+                        // 周期性补盾50 + 治疗光环
+                        boss.shield = Math.max(boss.shield, 50);
                         this.enemies.forEach(e => {
                             if (e.alive && e !== boss) {
                                 e.hp = Math.min(e.maxHp, e.hp + 20);
@@ -1664,34 +1683,48 @@
             for (let r = 0; r <= GRID_ROWS; r++) {
                 ctx.beginPath(); ctx.moveTo(0, r * CELL); ctx.lineTo(CANVAS_W, r * CELL); ctx.stroke();
             }
-            // 路径（高亮显示，带方向箭头）
+            // 路径（增强：发光石板路 + 流动方向箭头）
+            const flowPhase = (this._gameTime || 0) * 2; // 流动动画相位
             this.pathCells.forEach(key => {
                 const [c, r] = key.split(',').map(Number);
                 const x = c * CELL, y = r * CELL;
-                ctx.fillStyle = '#A0826D';
+                // 石板路面：暖棕色渐变
+                const grad = ctx.createLinearGradient(x, y, x, y + CELL);
+                grad.addColorStop(0, '#C4A672');
+                grad.addColorStop(0.5, '#A0826D');
+                grad.addColorStop(1, '#8B6F4E');
+                ctx.fillStyle = grad;
                 ctx.fillRect(x + 1, y + 1, CELL - 2, CELL - 2);
-                ctx.fillStyle = 'rgba(0,0,0,0.15)';
-                ctx.fillRect(x + 1, y + 1, CELL - 2, 5);
-                ctx.strokeStyle = 'rgba(139,115,85,0.5)';
+                // 石板缝隙
+                ctx.strokeStyle = 'rgba(80,55,30,0.4)';
                 ctx.lineWidth = 1;
                 ctx.strokeRect(x + 1, y + 1, CELL - 2, CELL - 2);
+                // 顶部高光
+                ctx.fillStyle = 'rgba(255,240,200,0.2)';
+                ctx.fillRect(x + 2, y + 2, CELL - 4, 3);
             });
-            // 绘制路径方向箭头
+            // 绘制路径方向箭头（增强：金色发光 + 流动效果）
             this.lanes.forEach(lane => {
                 for (let i = 0; i < lane.length - 1; i++) {
                     const p1 = lane[i], p2 = lane[i + 1];
                     const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
                     const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+                    // 流动透明度：箭头随时间脉动
+                    const pulse = 0.5 + 0.4 * Math.sin(flowPhase + i * 0.5);
                     ctx.save();
                     ctx.translate(mx, my);
                     ctx.rotate(angle);
-                    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+                    // 发光底
+                    ctx.shadowColor = '#FFD700';
+                    ctx.shadowBlur = 6;
+                    ctx.fillStyle = `rgba(255,220,80,${pulse})`;
                     ctx.beginPath();
-                    ctx.moveTo(6, 0);
-                    ctx.lineTo(-4, -5);
-                    ctx.lineTo(-4, 5);
+                    ctx.moveTo(8, 0);
+                    ctx.lineTo(-5, -6);
+                    ctx.lineTo(-5, 6);
                     ctx.closePath();
                     ctx.fill();
+                    ctx.shadowBlur = 0;
                     ctx.restore();
                 }
             });
@@ -1763,41 +1796,179 @@
             if (this.selectedTower === t || this.movingTower === t) {
                 ctx.save();
                 ctx.strokeStyle = this.movingTower === t ? 'rgba(30,144,255,0.8)' : 'rgba(255,215,0,0.6)';
-                ctx.fillStyle = this.movingTower === t ? 'rgba(30,144,255,0.15)' : 'rgba(255,215,0,0.1)';
+                ctx.fillStyle = this.movingTower === t ? 'rgba(30,144,255,0.12)' : 'rgba(255,215,0,0.08)';
                 ctx.lineWidth = 2;
                 ctx.beginPath(); ctx.arc(t.x, t.y, t.range, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
                 ctx.restore();
-                // 准备阶段移动提示
                 if (this.movingTower === t) {
                     ctx.save();
                     ctx.font = '12px Arial';
                     ctx.fillStyle = '#1E90FF';
                     ctx.textAlign = 'center';
-                    ctx.fillText('点击空位移动', t.x, t.y - 30);
+                    ctx.fillText('点击空位移动', t.x, t.y - 40);
                     ctx.restore();
                 }
             }
+
+            // 攻击后坐力（150ms内缩放回弹）
+            const attackDelta = now - (t.lastAttackTime || 0);
+            const recoil = attackDelta < 150 ? 1 - 0.12 * (1 - attackDelta / 150) : 1;
+
+            // 瞄准角度
+            let aimAngle = 0;
+            if (t.target) {
+                aimAngle = Math.atan2(t.target.y - t.y, t.target.x - t.x);
+            }
+
+            const _ich = ichData(t.heritageId) || {};
+            const bodyColor = _ich.color || (t.card && t.card.color) || '#888';
+            const roofColor = _ich.roofColor || (t.card && t.card.roofColor) || '#555';
+
             ctx.save();
             ctx.translate(t.x, t.y);
-            // 底座
+
+            // === 地面阴影 ===
+            ctx.fillStyle = 'rgba(0,0,0,0.25)';
+            ctx.beginPath();
+            ctx.ellipse(0, 8, 22, 8, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // === 等距石台底座 ===
+            const bW = 22, bH = 11;
+            // 侧面
             ctx.fillStyle = '#5C4033';
-            ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI * 2); ctx.fill();
-            ctx.strokeStyle = '#D4A84D'; ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(-bW, 0); ctx.lineTo(0, bH); ctx.lineTo(bW, 0); ctx.lineTo(bW, -3);
+            ctx.lineTo(0, bH - 3); ctx.lineTo(-bW, -3); ctx.closePath();
+            ctx.fill();
+            // 顶面
+            const baseGrad = ctx.createLinearGradient(0, -bH, 0, bH);
+            baseGrad.addColorStop(0, '#8B7355');
+            baseGrad.addColorStop(1, '#6B5D4F');
+            ctx.fillStyle = baseGrad;
+            ctx.beginPath();
+            ctx.moveTo(0, -bH); ctx.lineTo(bW, 0); ctx.lineTo(0, bH); ctx.lineTo(-bW, 0);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#4A3525'; ctx.lineWidth = 1;
             ctx.stroke();
-            // emoji
-            ctx.font = '22px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText(t.emoji, 0, -2);
-            // 等级
-            ctx.font = 'bold 11px Arial';
+
+            // === 塔身（带后坐力缩放）===
+            const s = recoil;
+            const bodyW = 18 * s, bodyH = 26 * s;
+            const bodyTop = -bH - bodyH;
+            // 塔身主体
+            const bodyGrad = ctx.createLinearGradient(-bodyW/2, 0, bodyW/2, 0);
+            bodyGrad.addColorStop(0, this._lightenHex(bodyColor, 20));
+            bodyGrad.addColorStop(0.5, bodyColor);
+            bodyGrad.addColorStop(1, this._darkenHex(bodyColor, 20));
+            ctx.fillStyle = bodyGrad;
+            ctx.fillRect(-bodyW/2, bodyTop, bodyW, bodyH);
+            // 塔身底部圆角
+            ctx.beginPath();
+            ctx.arc(0, bodyTop + bodyH, bodyW/2, 0, Math.PI);
+            ctx.fill();
+            // 塔身装饰带（顶部和底部各一条金色线）
+            ctx.fillStyle = 'rgba(255,215,0,0.4)';
+            ctx.fillRect(-bodyW/2, bodyTop + 2, bodyW, 1.5);
+            ctx.fillRect(-bodyW/2, bodyTop + bodyH - 4, bodyW, 1.5);
+
+            // === 屋顶（中式飞檐）===
+            const roofH = 14 * s;
+            const eaveW = bodyW / 2 + 5;
+            ctx.fillStyle = roofColor;
+            ctx.beginPath();
+            ctx.moveTo(-eaveW, bodyTop + 2);        // 左檐角
+            ctx.quadraticCurveTo(-eaveW + 2, bodyTop - 2, -bodyW/2, bodyTop - 1); // 左上翘
+            ctx.lineTo(0, bodyTop - roofH);          // 屋脊
+            ctx.lineTo(bodyW/2, bodyTop - 1);        // 右下
+            ctx.quadraticCurveTo(eaveW - 2, bodyTop - 2, eaveW, bodyTop + 2);     // 右檐角
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 1;
+            ctx.stroke();
+            // 屋顶尖饰
             ctx.fillStyle = '#FFD700';
-            ctx.fillText('Lv' + t.level, 0, 16);
-            // 眩晕
-            if (now < t.stunnedUntil) {
-                ctx.fillStyle = '#FFA500';
-                ctx.font = '14px Arial';
-                ctx.fillText('💫', 0, -22);
+            ctx.beginPath();
+            ctx.arc(0, bodyTop - roofH - 1, 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // === emoji 图标 ===
+            ctx.font = '13px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(t.emoji, 0, bodyTop + bodyH / 2);
+
+            // === 瞄准指示器（小箭头指向目标）===
+            if (t.target) {
+                ctx.save();
+                ctx.rotate(aimAngle);
+                ctx.fillStyle = 'rgba(255,215,0,0.8)';
+                ctx.beginPath();
+                ctx.moveTo(bodyW / 2 + 4, 0);
+                ctx.lineTo(bodyW / 2 + 10, -3);
+                ctx.lineTo(bodyW / 2 + 10, 3);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
             }
+
+            // === 等级星星 ===
+            const starY = bH + 6;
+            const starSz = 4;
+            const starGap = 6;
+            const totalW = (t.level - 1) * starGap;
+            for (let i = 0; i < t.level; i++) {
+                const sx = -totalW / 2 + i * starGap;
+                this._drawStar(ctx, sx, starY, starSz, '#FFD700');
+            }
+
+            // === 眩晕效果 ===
+            if (now < t.stunnedUntil) {
+                const stunRot = (now / 200) % (Math.PI * 2);
+                ctx.save();
+                ctx.translate(0, bodyTop - roofH - 8);
+                ctx.rotate(stunRot);
+                ctx.font = '10px Arial'; ctx.textAlign = 'center';
+                ctx.fillText('💫', 8, 0);
+                ctx.restore();
+            }
+
             ctx.restore();
+        }
+
+        _drawStar(ctx, x, y, size, color) {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            for (let i = 0; i < 5; i++) {
+                const a = (Math.PI * 2 * i) / 5 - Math.PI / 2;
+                const ia = a + Math.PI / 5;
+                const px = x + Math.cos(a) * size;
+                const py = y + Math.sin(a) * size;
+                const ix = x + Math.cos(ia) * size * 0.4;
+                const iy = y + Math.sin(ia) * size * 0.4;
+                if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+                ctx.lineTo(ix, iy);
+            }
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        _lightenHex(hex, pct) {
+            return this._shiftHex(hex, pct);
+        }
+        _darkenHex(hex, pct) {
+            return this._shiftHex(hex, -pct);
+        }
+        _shiftHex(hex, pct) {
+            hex = hex.replace('#', '');
+            if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+            const r = parseInt(hex.substr(0, 2), 16);
+            const g = parseInt(hex.substr(2, 2), 16);
+            const b = parseInt(hex.substr(4, 2), 16);
+            const amt = Math.round(255 * pct / 100);
+            const nr = Math.max(0, Math.min(255, r + amt));
+            const ng = Math.max(0, Math.min(255, g + amt));
+            const nb = Math.max(0, Math.min(255, b + amt));
+            return '#' + [nr, ng, nb].map(v => v.toString(16).padStart(2, '0')).join('');
         }
 
         _drawEnemy(e) {
@@ -1806,6 +1977,21 @@
             ctx.globalAlpha = e.alive ? (e.invisible ? 0.3 : 1) : Math.max(0, e.deathTimer / 0.5);
             ctx.translate(e.x, e.y);
             const radius = e.isBoss ? 22 : (e.isElite ? 16 : 12);
+
+            // ===== 运动动画：弹跳 + 摇摆 =====
+            const bounceFreq = e.isBoss ? 3 : 6; // Boss慢弹，小怪快弹
+            const bounceAmp = e.isBoss ? 4 : 6;
+            const bounceY = e.alive ? -Math.abs(Math.sin(e._animTime * bounceFreq)) * bounceAmp : 0;
+            const swingAngle = e.alive ? Math.sin(e._animTime * bounceFreq * 1.3) * 0.08 : 0; // 轻微摇摆
+            // 死亡动画：缩小+旋转
+            const deathScale = e.alive ? 1 : (e.deathTimer / 0.5);
+            const deathRot = e.alive ? 0 : (1 - e.deathTimer / 0.5) * 0.8;
+            ctx.translate(0, bounceY);
+            ctx.rotate(swingAngle + deathRot);
+            ctx.scale(deathScale, deathScale);
+
+            // 受击闪烁：红色叠加
+            const hitFlashing = e._hitFlash > 0;
 
             // ===== 阶段八：优先使用敌人立绘图片，失败回退 emoji =====
             const imgKey = 'enemy-' + e.type;
@@ -1825,7 +2011,17 @@
                         ctx.arc(0, 0, size * 0.75, 0, Math.PI * 2);
                         ctx.fill();
                     }
-                    ctx.drawImage(img, -size / 2, -size / 2, size, size);
+                    // 受击闪烁：红色滤镜叠加
+                    if (hitFlashing) {
+                        ctx.save();
+                        ctx.drawImage(img, -size / 2, -size / 2, size, size);
+                        ctx.globalCompositeOperation = 'source-atop';
+                        ctx.fillStyle = 'rgba(255, 50, 50, 0.5)';
+                        ctx.fillRect(-size / 2, -size / 2, size, size);
+                        ctx.restore();
+                    } else {
+                        ctx.drawImage(img, -size / 2, -size / 2, size, size);
+                    }
                     // 精英金色边框
                     if (e.isElite && !e.isBoss) {
                         ctx.strokeStyle = '#FFD700';
@@ -1848,7 +2044,7 @@
             }
 
             // ===== 回退：圆形底 + emoji 文字 =====
-            ctx.fillStyle = e.color;
+            ctx.fillStyle = hitFlashing ? '#FF6347' : e.color; // 受击变红
             ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2); ctx.fill();
             ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; ctx.stroke();
             // emoji
@@ -3869,13 +4065,25 @@
                 window.GameState.addPopularity(wr.popularity);
             }
 
-            // 每 10 波遗物三选一
+            // 每 10 波遗物三选一（修复：增加安全超时，防止回调未触发导致永久暂停）
             if (w % (cfg.relicInterval || 10) === 0 && window.RelicSystem) {
                 this.paused = true;
-                RelicSystem.showRelicChoice ? RelicSystem.showRelicChoice(() => {
+                const resumeGame = () => {
                     this.paused = false;
                     this._endlessGenerateNext();
-                }) : this._endlessGenerateNext();
+                };
+                if (RelicSystem.showRelicChoice) {
+                    RelicSystem.showRelicChoice(resumeGame);
+                    // 安全兜底：5秒后自动恢复，防止 UI 未弹出导致卡死
+                    setTimeout(() => {
+                        if (this.paused && this.running) {
+                            console.warn('[无尽模式] 遗物选择回调超时，自动恢复游戏');
+                            resumeGame();
+                        }
+                    }, 5000);
+                } else {
+                    resumeGame();
+                }
             } else {
                 this._endlessGenerateNext();
             }

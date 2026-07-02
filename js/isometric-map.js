@@ -9,7 +9,7 @@ class IsometricMapEngine {
         this.GRID_SIZE = 30;          // 地图总大小 30x30
         this.UNLOCKED_SIZE = 10;      // 当前解锁大小（随小镇等级提升）
         this.TILE_WIDTH = 80;
-        this.TILE_HEIGHT = 40;
+        this.TILE_HEIGHT = 50;        // 调整：40→50，1.6:1 更俯视（参考开心商店）
         
         this.canvas = null;
         this.ctx = null;
@@ -174,10 +174,10 @@ class IsometricMapEngine {
             const startTile = this.tileToScreen(gridX, gridY);
             const endTile = this.tileToScreen(gridX + width - 1, gridY + height - 1);
             const centerX = (startTile.x + endTile.x) / 2;
-            // 修复：与 drawBuilding 保持一致，对齐地块底角
+            // 修复：与 drawBuilding 保持一致，topY = 中心y - halfH
             const halfH = this.TILE_HEIGHT / 2;
             const bottomY = Math.max(startTile.y, endTile.y) + halfH;
-            const topY = Math.min(startTile.y, endTile.y) + halfH;
+            const topY = Math.min(startTile.y, endTile.y) - halfH;
             const midY = (topY + bottomY) / 2;
             const widthPx = width * this.TILE_WIDTH;
             const heightPx = height * this.TILE_HEIGHT;
@@ -335,10 +335,10 @@ class IsometricMapEngine {
         const heightPx = height * tileHeight;
 
         const centerX = (startTile.x + endTile.x) / 2;
-        // 修复：建筑底部应对齐地块底角（中心y + halfH），原用地块中心y导致整体偏上
+        // 修复：topY 应为地块顶角（中心y - halfH），原 +halfH 导致建筑下移半格
         const halfH = this.TILE_HEIGHT / 2;
         const bottomY = Math.max(startTile.y, endTile.y) + halfH;
-        const topY = Math.min(startTile.y, endTile.y) + halfH;
+        const topY = Math.min(startTile.y, endTile.y) - halfH;
         const midY = (topY + bottomY) / 2;
 
         const depth = gridX + gridY;
@@ -368,17 +368,38 @@ class IsometricMapEngine {
             const img = window.AssetLoader.get(imgKey);
             // 视锥剔除：图片完整在画布外则跳过
             if (img && this._isVisible(centerX, bottomY, widthPx)) {
-                // 建筑投影（椭圆软阴影，居中对齐地块底角）
+                // 修复悬浮：菱形接触阴影，紧贴地块边缘，前重后轻
                 ctx.save();
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
-                ctx.filter = 'blur(3px)';
+                const halfW = widthPx / 2;
+                const halfH = this.TILE_HEIGHT / 2 * height;
+                // 外层柔和阴影（大范围淡影）
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+                ctx.filter = 'blur(6px)';
                 ctx.beginPath();
-                ctx.ellipse(centerX, bottomY, widthPx * 0.45, widthPx * 0.22, 0, 0, Math.PI * 2);
+                ctx.moveTo(centerX, bottomY - halfH - 2);
+                ctx.lineTo(centerX + halfW + 3, midY);
+                ctx.lineTo(centerX, bottomY + 3);
+                ctx.lineTo(centerX - halfW - 3, midY);
+                ctx.closePath();
+                ctx.fill();
+                // 内层接触阴影（贴紧建筑底部，前暗后亮）
+                ctx.filter = 'blur(2px)';
+                const shadowGrad = ctx.createLinearGradient(centerX, midY, centerX, bottomY);
+                shadowGrad.addColorStop(0, 'rgba(0, 0, 0, 0.15)');
+                shadowGrad.addColorStop(0.7, 'rgba(0, 0, 0, 0.35)');
+                shadowGrad.addColorStop(1, 'rgba(0, 0, 0, 0.50)');
+                ctx.fillStyle = shadowGrad;
+                ctx.beginPath();
+                ctx.moveTo(centerX, bottomY - halfH);
+                ctx.lineTo(centerX + halfW * 0.85, midY);
+                ctx.lineTo(centerX, bottomY);
+                ctx.lineTo(centerX - halfW * 0.85, midY);
+                ctx.closePath();
                 ctx.fill();
                 ctx.filter = 'none';
                 ctx.restore();
 
-                // 修复：图片宽度=地块宽度，底部对齐地块底角（去掉1.2倍放大和+4偏移）
+                // 修复：图片宽度=地块宽度，底部对齐地块底角
                 const drawW = widthPx;
                 const drawH = drawW * (img.height / img.width);
                 const drawX = centerX - drawW / 2;
@@ -397,12 +418,31 @@ class IsometricMapEngine {
             }
         } else {
             // ===== 回退：原有 Canvas 三层绘制（阴影->主体->屋顶） =====
-            // 阴影（椭圆软阴影，居中对齐）
+            // 菱形接触阴影
             ctx.save();
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
-            ctx.filter = 'blur(3px)';
+            const halfW2 = widthPx / 2;
+            const halfH2 = this.TILE_HEIGHT / 2 * height;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+            ctx.filter = 'blur(6px)';
             ctx.beginPath();
-            ctx.ellipse(centerX, bottomY, widthPx * 0.45, widthPx * 0.22, 0, 0, Math.PI * 2);
+            ctx.moveTo(centerX, bottomY - halfH2 - 2);
+            ctx.lineTo(centerX + halfW2 + 3, midY);
+            ctx.lineTo(centerX, bottomY + 3);
+            ctx.lineTo(centerX - halfW2 - 3, midY);
+            ctx.closePath();
+            ctx.fill();
+            ctx.filter = 'blur(2px)';
+            const sg = ctx.createLinearGradient(centerX, midY, centerX, bottomY);
+            sg.addColorStop(0, 'rgba(0, 0, 0, 0.15)');
+            sg.addColorStop(0.7, 'rgba(0, 0, 0, 0.35)');
+            sg.addColorStop(1, 'rgba(0, 0, 0, 0.50)');
+            ctx.fillStyle = sg;
+            ctx.beginPath();
+            ctx.moveTo(centerX, bottomY - halfH2);
+            ctx.lineTo(centerX + halfW2 * 0.85, midY);
+            ctx.lineTo(centerX, bottomY);
+            ctx.lineTo(centerX - halfW2 * 0.85, midY);
+            ctx.closePath();
             ctx.fill();
             ctx.filter = 'none';
             ctx.restore();
@@ -789,11 +829,11 @@ class IsometricMapEngine {
         let seed = 12345;
         const rand = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
 
-        const types = ['pine-tree', 'willow-tree', 'stone-lantern', 'stone-well', 'bamboo', 'rock', 'plum-tree', 'lotus-pond'];
-        const sizes = { 'pine-tree': 0.9, 'willow-tree': 1.0, 'stone-lantern': 0.5, 'stone-well': 0.6, 'bamboo': 0.8, 'rock': 0.5, 'plum-tree': 0.9, 'lotus-pond': 0.7 };
+        const types = ['pine-tree', 'willow-tree', 'stone-lantern', 'stone-well', 'bamboo', 'rock', 'plum-tree', 'lotus-pond', 'stone-bridge', 'wooden-pavilion', 'stone-lion', 'red-lantern'];
+        const sizes = { 'pine-tree': 0.9, 'willow-tree': 1.0, 'stone-lantern': 0.5, 'stone-well': 0.6, 'bamboo': 0.8, 'rock': 0.5, 'plum-tree': 0.9, 'lotus-pond': 0.7, 'stone-bridge': 0.8, 'wooden-pavilion': 0.9, 'stone-lion': 0.5, 'red-lantern': 0.4 };
 
-        // 四周边缘放置装饰物（在解锁范围外）
-        for (let i = 0; i < 40; i++) {
+        // 四周边缘放置装饰物（在解锁范围外）—— 增加到80个
+        for (let i = 0; i < 80; i++) {
             let col, row;
             const edge = Math.floor(rand() * 4);
             if (edge === 0) { col = Math.floor(rand() * G); row = Math.floor(rand() * 2); }           // 上边

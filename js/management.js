@@ -330,14 +330,17 @@ class Management {
         for (let i = 0; i < width; i++) {
             for (let j = 0; j < height; j++) {
                 const { x, y } = window.IsometricMap.tileToScreen(col + i, row + j);
+                const halfW = window.IsometricMap.TILE_WIDTH / 2;
+                const halfH = window.IsometricMap.TILE_HEIGHT / 2;
                 ctx.fillStyle = color;
                 ctx.strokeStyle = borderColor;
                 ctx.lineWidth = 2;
+                // 修复：与 drawGrid 保持一致，以 (x,y) 为菱形中心绘制
                 ctx.beginPath();
-                ctx.moveTo(x, y);
-                ctx.lineTo(x + window.IsometricMap.TILE_WIDTH / 2, y - window.IsometricMap.TILE_HEIGHT / 2);
-                ctx.lineTo(x, y - window.IsometricMap.TILE_HEIGHT);
-                ctx.lineTo(x - window.IsometricMap.TILE_WIDTH / 2, y - window.IsometricMap.TILE_HEIGHT / 2);
+                ctx.moveTo(x, y - halfH);
+                ctx.lineTo(x + halfW, y);
+                ctx.lineTo(x, y + halfH);
+                ctx.lineTo(x - halfW, y);
                 ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
