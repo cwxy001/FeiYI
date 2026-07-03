@@ -3901,3 +3901,76 @@ h1, h2, h3, .btn-text {
     .zodiac-levels-grid { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); }
 }
 
+/* ===== v79: 弹窗水墨晕染动画 + 按钮涟漪 ===== */
+
+/* 弹窗打开动画：水墨晕染扩散 */
+@keyframes ink-spread {
+    0% { transform: scale(0.85); opacity: 0; filter: blur(8px); }
+    60% { transform: scale(1.02); opacity: 0.9; filter: blur(2px); }
+    100% { transform: scale(1); opacity: 1; filter: blur(0); }
+}
+
+/* 弹窗关闭动画：水墨收拢 */
+@keyframes ink-shrink {
+    0% { transform: scale(1); opacity: 1; filter: blur(0); }
+    100% { transform: scale(0.9); opacity: 0; filter: blur(6px); }
+}
+
+/* 应用到所有面板和弹窗 */
+.build-panel, .collection-panel, .settings-panel,
+.td-screen, .relic-select-panel, .relic-reward-panel,
+.daily-tasks-panel, .achievements-panel, .leaderboard-panel,
+.pvp-panel, .pvp-result-panel {
+    animation: ink-spread 0.35s ease-out;
+}
+
+/* 按钮hover水墨涟漪 */
+.action-btn::after {
+    content: "";
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 0; height: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,215,0,0.3) 0%, transparent 70%);
+    transform: translate(-50%, -50%);
+    transition: width 0.4s ease, height 0.4s ease;
+    pointer-events: none;
+}
+.action-btn:hover::after {
+    width: 120px; height: 120px;
+}
+
+/* 场景切换转场遮罩 */
+.scene-transition {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(circle at center, rgba(26,15,10,0) 0%, rgba(26,15,10,0.9) 100%);
+    z-index: 9999;
+    pointer-events: none;
+    animation: ink-fade 0.3s ease-out;
+}
+@keyframes ink-fade {
+    0% { opacity: 0; }
+    50% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+/* 资源数字变化动画 */
+@keyframes number-pop {
+    0% { transform: scale(1); color: var(--color-text-light); }
+    50% { transform: scale(1.3); color: var(--color-gold-light); }
+    100% { transform: scale(1); color: var(--color-text-light); }
+}
+.resource-value {
+    animation: number-pop 0.4s ease;
+}
+
+/* 卡牌hover悬浮 */
+.td-level-card {
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.td-level-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(255,215,0,0.3);
+}
+
