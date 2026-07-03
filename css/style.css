@@ -3901,6 +3901,15 @@ h1, h2, h3, .btn-text {
     .zodiac-levels-grid { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); }
 }
 
+/* 关卡列表全屏页面样式 */
+.zodiac-levels-fullpage {
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 16px;
+}
+
 /* ===== v79: 弹窗水墨晕染动画 + 按钮涟漪 ===== */
 
 /* 弹窗打开动画：水墨晕染扩散 */
@@ -3955,13 +3964,13 @@ h1, h2, h3, .btn-text {
     100% { opacity: 0; }
 }
 
-/* 资源数字变化动画 */
+/* 资源数字变化动画（仅经营模式） */
 @keyframes number-pop {
     0% { transform: scale(1); color: var(--color-text-light); }
     50% { transform: scale(1.3); color: var(--color-gold-light); }
     100% { transform: scale(1); color: var(--color-text-light); }
 }
-.resource-value {
+#management-screen .resource-value {
     animation: number-pop 0.4s ease;
 }
 

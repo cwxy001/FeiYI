@@ -747,6 +747,7 @@
             if (!container) return;
             // 分页状态保持（面板关闭/重开不丢失）
             if (this._lsCurrentPage == null) this._lsCurrentPage = 0;
+            this._lsShowLevels = false; // 每次进入默认显示圆环
             this._renderLevelSelectPage(container, this._lsCurrentPage);
         }
 
@@ -758,21 +759,23 @@
             const completed = gs.completedLevels || [];
             const endlessRecord = gs.endlessRecord || 0;
 
-            // 12 生肖与关卡映射（鼠起，顺时针；共 30 关）
+            // 12 生肖与时辰对应关系，关卡从 LEVELS 数据按 hour 字段自动分组
             const ZODIAC = [
-                { name: '鼠', emoji: '🐭', levels: [1, 2] },
-                { name: '牛', emoji: '🐮', levels: [3, 4] },
-                { name: '虎', emoji: '🐯', levels: [5, 6, 7] },
-                { name: '兔', emoji: '🐰', levels: [8, 9] },
-                { name: '龙', emoji: '🐲', levels: [10, 11, 12] },
-                { name: '蛇', emoji: '🐍', levels: [13, 14] },
-                { name: '马', emoji: '🐴', levels: [15, 16, 17] },
-                { name: '羊', emoji: '🐑', levels: [18, 19] },
-                { name: '猴', emoji: '🐵', levels: [20, 21, 22] },
-                { name: '鸡', emoji: '🐔', levels: [23, 24] },
-                { name: '狗', emoji: '🐶', levels: [25, 26, 27] },
-                { name: '猪', emoji: '🐷', levels: [28, 29, 30] }
+                { name: '鼠', emoji: '🐭', hour: '子时' },
+                { name: '牛', emoji: '🐮', hour: '丑时' },
+                { name: '虎', emoji: '🐯', hour: '寅时' },
+                { name: '兔', emoji: '🐰', hour: '卯时' },
+                { name: '龙', emoji: '🐲', hour: '辰时' },
+                { name: '蛇', emoji: '🐍', hour: '巳时' },
+                { name: '马', emoji: '🐴', hour: '午时' },
+                { name: '羊', emoji: '🐑', hour: '未时' },
+                { name: '猴', emoji: '🐵', hour: '申时' },
+                { name: '鸡', emoji: '🐔', hour: '酉时' },
+                { name: '狗', emoji: '🐶', hour: '戌时' },
+                { name: '猪', emoji: '🐷', hour: '亥时' }
             ];
+            // 按 hour 自动分组关卡
+            ZODIAC.forEach(z => { z.levels = levels.filter(l => l.hour === z.hour).map(l => l.index); });
 
             // 计算当前应高亮的生肖：首个"已解锁但未通关"关卡所在生肖
             const sortedUnlocked = [...unlocked].sort((a, b) => a - b);
@@ -789,61 +792,71 @@
             const weeklySpecial = this._getWeeklySpecial();
             const spCfg = (window.GameData && window.GameData.SPECIAL_LEVELS || {})[weeklySpecial];
 
-            let html = '<button class="td-back-btn" id="td-ls-back">← 返回古镇</button>';
-            html += '<h2 class="td-ls-title">十二时辰 · 闯关</h2>';
-            html += '<div class="zodiac-wheel-wrap">';
-            html += this._renderZodiacWheel(ZODIAC, { unlocked, completed, gs, selIdx, currentZodiacIdx, endlessRecord, spCfg });
-            html += '</div>';
+            // 判断当前视图：圆环 or 关卡列表
+            const showLevelsView = this._lsShowLevels === true;
 
-            // 下方展开的关卡卡片列表（复用 .td-level-card 样式）
-            const selZodiac = ZODIAC[selIdx];
-            const SUBTYPE_BORDER = { initial: 'sub-initial', middle: 'sub-middle', final: 'sub-final' };
-            let levelsHtml = `<div class="zodiac-levels-head"><span class="zodiac-levels-emoji">${selZodiac.emoji}</span><span class="zodiac-levels-title">${selZodiac.name}时辰 · 关卡</span></div>`;
-            levelsHtml += '<div class="zodiac-levels-grid">';
-            selZodiac.levels.forEach(lvIdx => {
-                const lv = levels.find(l => l.index === lvIdx);
-                if (!lv) return;
-                const isUnlocked = unlocked.includes(lv.index);
-                const isCompleted = completed.includes(lv.index);
-                const stars = (gs.levelStars && gs.levelStars[lv.index]) || (isCompleted ? 1 : 0);
-                const bossObj = enemyDataById(lv.boss);
-                const bossShort = bossObj ? bossObj.name.split('·')[0] : '';
-                const subClass = SUBTYPE_BORDER[lv.subType] || '';
-                levelsHtml += `
-                    <div class="td-level-card ${subClass} ${isUnlocked ? '' : 'locked'} ${isCompleted ? 'completed' : ''}" data-level="${lv.index}">
-                        <div class="td-level-emoji">${BOSS_EMOJI[lv.boss] || '⭐'}</div>
-                        <div class="td-level-name">${lv.name}</div>
-                        <div class="td-level-boss">${bossShort}</div>
-                        <div class="td-level-stars">${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}</div>
-                        ${isCompleted ? '<div class="td-level-check">✓</div>' : ''}
-                        ${!isUnlocked ? '<div class="td-level-lock">🔒</div>' : ''}
-                    </div>`;
-            });
-            levelsHtml += '</div>';
-            html += `<div class="zodiac-levels" id="td-zodiac-levels">${levelsHtml}</div>`;
+            let html = '<button class="td-back-btn" id="td-ls-back">' + (showLevelsView ? '← 返回圆环' : '← 返回古镇') + '</button>';
 
-            html += '<div class="td-ls-hint zodiac-future-hint">未来更新：24节气 · 天干地支</div>';
+            if (showLevelsView) {
+                // === 关卡列表页面（点击生肖后跳转） ===
+                const selZodiac = ZODIAC[selIdx];
+                html += `<h2 class="td-ls-title">${selZodiac.emoji} ${selZodiac.name}时辰 · 关卡</h2>`;
+                const SUBTYPE_BORDER = { initial: 'sub-initial', middle: 'sub-middle', final: 'sub-final' };
+                html += '<div class="zodiac-levels-grid zodiac-levels-fullpage">';
+                selZodiac.levels.forEach(lvIdx => {
+                    const lv = levels.find(l => l.index === lvIdx);
+                    if (!lv) return;
+                    const isUnlocked = unlocked.includes(lv.index);
+                    const isCompleted = completed.includes(lv.index);
+                    const stars = (gs.levelStars && gs.levelStars[lv.index]) || (isCompleted ? 1 : 0);
+                    const bossObj = enemyDataById(lv.boss);
+                    const bossShort = bossObj ? bossObj.name.split('·')[0] : '';
+                    const subClass = SUBTYPE_BORDER[lv.subType] || '';
+                    html += `
+                        <div class="td-level-card ${subClass} ${isUnlocked ? '' : 'locked'} ${isCompleted ? 'completed' : ''}" data-level="${lv.index}">
+                            <div class="td-level-emoji">${BOSS_EMOJI[lv.boss] || '⭐'}</div>
+                            <div class="td-level-name">${lv.name}</div>
+                            <div class="td-level-boss">${bossShort}</div>
+                            <div class="td-level-stars">${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}</div>
+                            ${isCompleted ? '<div class="td-level-check">✓</div>' : ''}
+                            ${!isUnlocked ? '<div class="td-level-lock">🔒</div>' : ''}
+                        </div>`;
+                });
+                html += '</div>';
+                html += '<div class="td-ls-hint">点击已解锁关卡进入战斗</div>';
+            } else {
+                // === 圆环主页面 ===
+                html += '<h2 class="td-ls-title">十二时辰 · 闯关</h2>';
+                html += '<div class="zodiac-wheel-wrap">';
+                html += this._renderZodiacWheel(ZODIAC, { unlocked, completed, gs, selIdx, currentZodiacIdx, endlessRecord, spCfg });
+                html += '</div>';
+                html += '<div class="td-ls-hint zodiac-future-hint">点击生肖进入关卡 · 未来更新：24节气 · 天干地支</div>';
+            }
+
             container.innerHTML = html;
 
-            // 绑定生肖扇形点击
-            container.querySelectorAll('.zodiac-sector').forEach(node => {
-                const zi = parseInt(node.dataset.zodiac, 10);
-                const z = ZODIAC[zi];
-                const isUnlocked = z.levels.some(l => unlocked.includes(l));
-                if (!isUnlocked) {
-                    node.addEventListener('click', () => {
-                        const firstLv = z.levels[0];
-                        const prevLv = firstLv > 1 ? firstLv - 1 : 1;
-                        const prevDef = levels.find(l => l.index === prevLv);
-                        alert(`🔒 ${z.emoji} ${z.name}时辰尚未开启\n请先通关「${prevDef ? prevDef.name : '前一关'}」`);
-                    });
-                } else {
-                    node.addEventListener('click', () => {
-                        this._lsSelectedZodiac = zi;
-                        this._renderLevelSelectPage(container, pageIdx);
-                    });
-                }
-            });
+            // 绑定生肖扇形点击 → 跳转到关卡列表页面
+            if (!showLevelsView) {
+                container.querySelectorAll('.zodiac-sector').forEach(node => {
+                    const zi = parseInt(node.dataset.zodiac, 10);
+                    const z = ZODIAC[zi];
+                    const isUnlocked = z.levels.length > 0 && z.levels.some(l => unlocked.includes(l));
+                    if (!isUnlocked) {
+                        node.addEventListener('click', () => {
+                            const firstLv = z.levels[0] || 1;
+                            const prevLv = firstLv > 1 ? firstLv - 1 : 1;
+                            const prevDef = levels.find(l => l.index === prevLv);
+                            alert(`🔒 ${z.emoji} ${z.name}时辰尚未开启\n请先通关「${prevDef ? prevDef.name : '前一关'}」`);
+                        });
+                    } else {
+                        node.addEventListener('click', () => {
+                            this._lsSelectedZodiac = zi;
+                            this._lsShowLevels = true;
+                            this._renderLevelSelectPage(container, pageIdx);
+                        });
+                    }
+                });
+            }
 
             // 绑定关卡卡片点击
             container.querySelectorAll('.td-level-card').forEach(node => {
@@ -853,9 +866,17 @@
                 }
             });
 
-            // 返回
+            // 返回按钮
             const back = document.getElementById('td-ls-back');
-            if (back) back.addEventListener('click', () => this._hideAll());
+            if (back) back.addEventListener('click', () => {
+                if (showLevelsView) {
+                    // 从关卡列表返回圆环
+                    this._lsShowLevels = false;
+                    this._renderLevelSelectPage(container, pageIdx);
+                } else {
+                    this._hideAll();
+                }
+            });
 
             // 无尽入口
             const endlessBtn = document.getElementById('td-endless-entry');
