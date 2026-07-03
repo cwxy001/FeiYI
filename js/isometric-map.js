@@ -544,14 +544,8 @@ class IsometricMapEngine {
      * @private
      */
     _getTileType(col, row) {
-        // 中心区域用青石板（建筑区）
-        const center = Math.floor(this.getUnlockedSize() / 2);
-        if (col >= center - 2 && col <= center + 3 && row >= center - 2 && row <= center + 3) return 'cobblestone';
-        // 边缘区域用草地
-        const unlocked = this.getUnlockedSize();
-        if (col <= 1 || col >= unlocked - 2 || row <= 1 || row >= unlocked - 2) return 'grass';
-        // 其余用泥土路
-        return 'dirt';
+        // 全部统一为古镇青石板地砖
+        return 'cobblestone';
     }
 
     /**

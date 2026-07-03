@@ -362,8 +362,8 @@ class Management {
                 this.selectedTile = null;
                 this.selectedIch = null;
                 this.showBuildPanel();
-                // 引导：步骤4 点击建造按钮
-                if (this.tutorialActive && this.tutorialStep === 4) {
+                // 引导：步骤0 点击建造按钮
+                if (this.tutorialActive && this.tutorialStep === 0) {
                     this._advanceTutorial();
                 }
             });
@@ -371,6 +371,10 @@ class Management {
 
         if (stageBtn) {
             stageBtn.addEventListener('click', () => {
+                // 引导：步骤4 点击闯关按钮
+                if (this.tutorialActive && this.tutorialStep === 4) {
+                    this._advanceTutorial();
+                }
                 // 阶段三：进入塔防关卡选择界面
                 if (window.TowerDefense && typeof window.TowerDefense.showLevelSelect === 'function') {
                     window.TowerDefense.showLevelSelect();
@@ -434,14 +438,8 @@ class Management {
             } else if (window.IsometricMap && window.IsometricMap.hasEdgeDecoration(col, row)) {
                 // 新增：点击边缘天然障碍物 → 弹出拆除面板
                 this._showRemoveObstaclePanel(col, row);
-            } else {
-                this.selectedTile = { col, row };
-                this.showBuildPanel();
-                // 引导：步骤0 点击空地
-                if (this.tutorialActive && this.tutorialStep === 0) {
-                    this._advanceTutorial();
-                }
             }
+            // 取消点击空地直接建造功能，只能通过建造按钮建造
         }
     }
 
@@ -1683,11 +1681,11 @@ class Management {
      */
     _getTutorialSteps() {
         return [
-            { text: '欢迎来到非遗古镇！点击空地建造工坊', target: 'map-container', action: 'click-empty' },
+            { text: '欢迎来到非遗古镇！点击下方"建造"按钮开始建造工坊', target: 'build-btn', action: 'click-build' },
             { text: '选择剪纸坊开始建造', target: 'build-panel', action: 'select-workshop' },
             { text: '点击绿色位置放置工坊', target: 'map-container', action: 'place-building' },
             { text: '点击工坊可升级和招募传承人', target: 'map-container', action: 'click-building' },
-            { text: '建造更多工坊，闯关获取资源', target: 'build-btn', action: 'click-build' },
+            { text: '建造更多工坊，闯关获取资源', target: 'stage-btn', action: 'click-stage' },
             { text: '教程完成！祝你在古镇玩得开心', target: null, action: 'finish' }
         ];
     }
