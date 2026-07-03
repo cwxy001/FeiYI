@@ -3925,11 +3925,12 @@ h1, h2, h3, .btn-text {
     100% { transform: scale(0.9); opacity: 0; filter: blur(6px); }
 }
 
-/* 应用到所有面板和弹窗 */
-.build-panel, .collection-panel, .settings-panel,
-.td-screen, .relic-select-panel, .relic-reward-panel,
-.daily-tasks-panel, .achievements-panel, .leaderboard-panel,
-.pvp-panel, .pvp-result-panel {
+/* 应用到所有面板和弹窗（id选择器） */
+#build-panel, #collection-panel, #settings-panel,
+#td-screen, #relic-select-overlay, #relic-reward-overlay,
+#daily-tasks-panel, #achievements-panel, #leaderboard-panel,
+#pvp-panel, #pvp-result-panel, #level-select-screen,
+#game-over-overlay, #victory-overlay, #ad-overlay {
     animation: ink-spread 0.35s ease-out;
 }
 

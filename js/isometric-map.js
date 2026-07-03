@@ -656,33 +656,29 @@ class IsometricMapEngine {
         const w = this.canvas.width;
         const h = this.canvas.height;
 
-        // === 基础渐变背景（米黄色宣纸感） ===
+        // === 基础背景：古镇泥土+草地渐变（地块外延伸） ===
         const gradient = ctx.createLinearGradient(0, 0, 0, h);
-        gradient.addColorStop(0, '#D4C5A9');
-        gradient.addColorStop(0.4, '#E8DCC8');
-        gradient.addColorStop(1, '#C8B898');
+        gradient.addColorStop(0, '#3a5c3a');   // 顶部深绿（草地远景）
+        gradient.addColorStop(0.3, '#4a7c4a'); // 中上浅绿
+        gradient.addColorStop(0.6, '#8a9c5a'); // 中部黄绿过渡
+        gradient.addColorStop(1, '#6a8c4a');   // 底部草地
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, w, h);
 
-        // === 远景水墨山水（层叠远山，越远越淡） ===
+        // === 远景山林剪影（淡墨色） ===
         ctx.save();
-        // 最远层（极淡）
-        ctx.fillStyle = 'rgba(160, 170, 180, 0.15)';
-        this._drawDistantMountains(ctx, w, h, h * 0.15, 0.8, 120);
-        // 中远层
-        ctx.fillStyle = 'rgba(120, 130, 140, 0.2)';
-        this._drawDistantMountains(ctx, w, h, h * 0.22, 1.0, 80);
-        // 中近层
-        ctx.fillStyle = 'rgba(90, 100, 110, 0.25)';
-        this._drawDistantMountains(ctx, w, h, h * 0.30, 1.2, 50);
+        ctx.fillStyle = 'rgba(40, 60, 50, 0.35)';
+        this._drawDistantMountains(ctx, w, h, h * 0.12, 0.8, 100);
+        ctx.fillStyle = 'rgba(60, 80, 60, 0.3)';
+        this._drawDistantMountains(ctx, w, h, h * 0.20, 1.0, 70);
         ctx.restore();
 
-        // === 远景雾效（山脚雾气） ===
-        const fogGrad = ctx.createLinearGradient(0, h * 0.1, 0, h * 0.45);
-        fogGrad.addColorStop(0, 'rgba(220, 210, 190, 0.5)');
-        fogGrad.addColorStop(1, 'rgba(220, 210, 190, 0)');
+        // === 远景雾效 ===
+        const fogGrad = ctx.createLinearGradient(0, h * 0.05, 0, h * 0.35);
+        fogGrad.addColorStop(0, 'rgba(200, 220, 200, 0.4)');
+        fogGrad.addColorStop(1, 'rgba(200, 220, 200, 0)');
         ctx.fillStyle = fogGrad;
-        ctx.fillRect(0, h * 0.1, w, h * 0.35);
+        ctx.fillRect(0, h * 0.05, w, h * 0.3);
 
         // === 围墙外竹林带（上下边缘） ===
         ctx.save();
@@ -826,24 +822,37 @@ class IsometricMapEngine {
         const types = ['pine-tree', 'willow-tree', 'stone-lantern', 'stone-well', 'bamboo', 'rock', 'plum-tree', 'lotus-pond', 'stone-bridge', 'wooden-pavilion', 'stone-lion', 'red-lantern'];
         const sizes = { 'pine-tree': 0.9, 'willow-tree': 1.0, 'stone-lantern': 0.5, 'stone-well': 0.6, 'bamboo': 0.8, 'rock': 0.5, 'plum-tree': 0.9, 'lotus-pond': 0.7, 'stone-bridge': 0.8, 'wooden-pavilion': 0.9, 'stone-lion': 0.5, 'red-lantern': 0.4 };
 
-        // 四周边缘放置装饰物（在解锁范围外）—— 增加到80个
-        for (let i = 0; i < 80; i++) {
-            let col, row;
-            const edge = Math.floor(rand() * 4);
-            if (edge === 0) { col = Math.floor(rand() * G); row = Math.floor(rand() * 2); }           // 上边
-            else if (edge === 1) { col = Math.floor(rand() * G); row = G - 1 - Math.floor(rand() * 2); } // 下边
-            else if (edge === 2) { col = Math.floor(rand() * 2); row = Math.floor(rand() * G); }       // 左边
-            else { col = G - 1 - Math.floor(rand() * 2); row = Math.floor(rand() * G); }               // 右边
+        // 装饰物随机散布在整个地图（包括解锁区域内空地），标记为非功能性
+        // 先收集已占用的格子（建筑+路径），装饰物避开这些位置
+        const occupied = new Set();
+        if (this.buildings) {
+            this.buildings.forEach(b => {
+                for (let dx = 0; dx < b.width; dx++) {
+                    for (let dy = 0; dy < b.height; dy++) {
+                        occupied.add((b.gridX + dx) + ',' + (b.gridY + dy));
+                    }
+                }
+            });
+        }
 
-            // 避开已解锁区域（让装饰物在解锁范围外）
-            if (col < unlocked && row < unlocked) continue;
+        for (let i = 0; i < 80; i++) {
+            // 随机散布在整个地图范围
+            const col = Math.floor(rand() * G);
+            const row = Math.floor(rand() * G);
+
+            // 避开已占用格子（建筑位置）
+            if (occupied.has(col + ',' + row)) continue;
+            // 避开中心建造区域核心（留出玩家操作空间）
+            const center = Math.floor(unlocked / 2);
+            if (col >= center - 1 && col <= center + 2 && row >= center - 1 && row <= center + 2) continue;
 
             const type = types[Math.floor(rand() * types.length)];
             layout.push({
                 col, row, type,
                 scale: sizes[type] * (0.85 + rand() * 0.3),
                 offsetX: (rand() - 0.5) * 20,
-                offsetY: (rand() - 0.5) * 10
+                offsetY: (rand() - 0.5) * 10,
+                isDecoration: true  // 标记为纯装饰，无功能
             });
         }
         // 过滤掉已拆除的障碍物（从 GameState.removedObstacles 读取）
@@ -902,6 +911,9 @@ class IsometricMapEngine {
         this.drawBackground();
         this.drawGrid();
         this.drawDecorations();
+        
+        // NPC小人系统
+        this._updateAndDrawNPCs();
         
         const sortedBuildings = [...this.buildings].sort((a, b) => {
             const depthA = a.gridX + a.gridY;
@@ -988,6 +1000,135 @@ class IsometricMapEngine {
      */
     getBuildings() {
         return this.buildings;
+    }
+
+    // ===== NPC小人系统 =====
+    _initNPCs() {
+        if (this._npcs) return;
+        this._npcs = [];
+        this._npcColors = ['#E8C264', '#C41E3A', '#4A7C59', '#2F4F4F', '#8B4513', '#D4A84D', '#6B9CA0', '#CD853F'];
+        this._npcLastSpawn = 0;
+        this._npcMaxCount = 6;
+    }
+
+    _spawnNPC() {
+        if (!this._npcs) this._initNPCs();
+        if (this._npcs.length >= this._npcMaxCount) return;
+        const unlocked = this.getUnlockedSize();
+        const buildings = this.buildings.filter(b => b.placed !== false);
+        if (buildings.length === 0) return;
+
+        // 随机选一个建筑作为目标
+        const targetB = buildings[Math.floor(Math.random() * buildings.length)];
+        const startX = Math.floor(Math.random() * unlocked);
+        const startY = Math.floor(Math.random() * unlocked);
+
+        this._npcs.push({
+            id: Math.random(),
+            x: startX, y: startY,           // 当前格子坐标（浮点）
+            targetX: targetB.gridX, targetY: targetB.gridY,
+            targetBuilding: targetB,
+            speed: 0.015 + Math.random() * 0.01,
+            color: this._npcColors[Math.floor(Math.random() * this._npcColors.length)],
+            state: 'walking',               // walking / consuming / leaving
+            consumeTime: 0,
+            bobOffset: 0,
+            facing: 1
+        });
+    }
+
+    _updateAndDrawNPCs() {
+        if (!this._npcs) this._initNPCs();
+        const ctx = this.ctx;
+        if (!ctx) return;
+
+        // 定期生成新NPC
+        const now = performance.now();
+        if (now - this._npcLastSpawn > 3000 + Math.random() * 4000) {
+            this._spawnNPC();
+            this._npcLastSpawn = now;
+        }
+
+        this._npcs = this._npcs.filter(npc => {
+            // 更新状态
+            if (npc.state === 'walking') {
+                const dx = npc.targetX - npc.x;
+                const dy = npc.targetY - npc.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 0.3) {
+                    npc.state = 'consuming';
+                    npc.consumeTime = now;
+                } else {
+                    npc.x += (dx / dist) * npc.speed;
+                    npc.y += (dy / dist) * npc.speed;
+                    npc.facing = dx > 0 ? 1 : -1;
+                }
+                npc.bobOffset = Math.sin(now * 0.008) * 2;
+            } else if (npc.state === 'consuming') {
+                if (now - npc.consumeTime > 2000 + Math.random() * 2000) {
+                    npc.state = 'leaving';
+                    // 设置离开目标（地图边缘随机点）
+                    npc.targetX = Math.random() < 0.5 ? -2 : this.GRID_SIZE + 1;
+                    npc.targetY = Math.floor(Math.random() * this.GRID_SIZE);
+                }
+                npc.bobOffset = 0;
+            } else if (npc.state === 'leaving') {
+                const dx = npc.targetX - npc.x;
+                const dy = npc.targetY - npc.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 0.5 || npc.x < -1 || npc.x > this.GRID_SIZE + 1) {
+                    return false; // 移除NPC
+                }
+                npc.x += (dx / dist) * npc.speed;
+                npc.y += (dy / dist) * npc.speed;
+                npc.facing = dx > 0 ? 1 : -1;
+                npc.bobOffset = Math.sin(now * 0.008) * 2;
+            }
+
+            // 绘制NPC
+            const screen = this.tileToScreen(npc.x, npc.y);
+            const px = screen.x + this.offsetX;
+            const py = screen.y + this.offsetY + npc.bobOffset;
+
+            ctx.save();
+            // 阴影
+            ctx.fillStyle = 'rgba(0,0,0,0.25)';
+            ctx.beginPath();
+            ctx.ellipse(px, py + 2, 5, 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // 身体（Q版小人：圆头+梯形身）
+            const bodyColor = npc.color;
+            const headR = 4;
+            // 身体
+            ctx.fillStyle = bodyColor;
+            ctx.beginPath();
+            ctx.moveTo(px - 3, py + headR);
+            ctx.lineTo(px + 3, py + headR);
+            ctx.lineTo(px + 4, py + headR + 8);
+            ctx.lineTo(px - 4, py + headR + 8);
+            ctx.closePath();
+            ctx.fill();
+            // 头
+            ctx.fillStyle = '#FFDAB9';
+            ctx.beginPath();
+            ctx.arc(px, py, headR, 0, Math.PI * 2);
+            ctx.fill();
+            // 眼睛
+            ctx.fillStyle = '#333';
+            const eyeOffset = npc.facing > 0 ? 1 : -1;
+            ctx.fillRect(px - 1 + eyeOffset, py - 1, 1.2, 1.2);
+            ctx.fillRect(px + 1 + eyeOffset, py - 1, 1.2, 1.2);
+            // 消费中显示金币图标
+            if (npc.state === 'consuming') {
+                ctx.fillStyle = '#FFD700';
+                ctx.font = '10px serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('💰', px, py - 8);
+            }
+            ctx.restore();
+
+            return true;
+        });
     }
 }
 
