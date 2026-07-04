@@ -656,29 +656,41 @@ class IsometricMapEngine {
         const w = this.canvas.width;
         const h = this.canvas.height;
 
-        // === 基础背景：古镇泥土+草地渐变（地块外延伸） ===
+        // === 部落冲突/开心商店风格：草地纹理铺满整个画布 ===
+        // 先画草地底色渐变
         const gradient = ctx.createLinearGradient(0, 0, 0, h);
-        gradient.addColorStop(0, '#3a5c3a');   // 顶部深绿（草地远景）
-        gradient.addColorStop(0.3, '#4a7c4a'); // 中上浅绿
-        gradient.addColorStop(0.6, '#8a9c5a'); // 中部黄绿过渡
-        gradient.addColorStop(1, '#6a8c4a');   // 底部草地
+        gradient.addColorStop(0, '#4a8c3a');
+        gradient.addColorStop(0.4, '#5a9c4a');
+        gradient.addColorStop(0.7, '#6aa85a');
+        gradient.addColorStop(1, '#4a8c3a');
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, w, h);
 
-        // === 远景山林剪影（淡墨色） ===
-        ctx.save();
-        ctx.fillStyle = 'rgba(40, 60, 50, 0.35)';
-        this._drawDistantMountains(ctx, w, h, h * 0.12, 0.8, 100);
-        ctx.fillStyle = 'rgba(60, 80, 60, 0.3)';
-        this._drawDistantMountains(ctx, w, h, h * 0.20, 1.0, 70);
-        ctx.restore();
+        // 用grass纹理平铺整个画布（模拟草地延伸到无限远）
+        const grassTex = this._tileTextures && this._tileTextures.grass;
+        if (grassTex && grassTex.complete && grassTex.naturalWidth > 0) {
+            const tileSize = 80;
+            ctx.globalAlpha = 0.6;
+            for (let y = 0; y < h; y += tileSize) {
+                for (let x = 0; x < w; x += tileSize) {
+                    ctx.drawImage(grassTex, x, y, tileSize, tileSize);
+                }
+            }
+            ctx.globalAlpha = 1;
+        }
 
-        // === 远景雾效 ===
-        const fogGrad = ctx.createLinearGradient(0, h * 0.05, 0, h * 0.35);
-        fogGrad.addColorStop(0, 'rgba(200, 220, 200, 0.4)');
-        fogGrad.addColorStop(1, 'rgba(200, 220, 200, 0)');
-        ctx.fillStyle = fogGrad;
-        ctx.fillRect(0, h * 0.05, w, h * 0.3);
+        // === 远景：淡淡的树林剪影（顶部） ===
+        ctx.save();
+        ctx.fillStyle = 'rgba(30, 50, 30, 0.25)';
+        for (let i = 0; i < 12; i++) {
+            const tx = (i / 12) * w + Math.sin(i * 3.7) * 30;
+            const ty = h * 0.05 + Math.sin(i * 2.3) * 8;
+            const tw = 60 + Math.sin(i * 5.1) * 20;
+            ctx.beginPath();
+            ctx.arc(tx, ty, tw, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
 
         // === 围墙外竹林带（上下边缘） ===
         ctx.save();
@@ -783,20 +795,20 @@ class IsometricMapEngine {
     _loadDecorations() {
         if (this._decoTextures) return;
         this._decoTextures = {};
+        const V = 'v83';
         const decos = {
-            'pine-tree': 'assets/images/decorations/pine-tree.png?v=67',
-            'willow-tree': 'assets/images/decorations/willow-tree.png?v=67',
-            'stone-lantern': 'assets/images/decorations/stone-lantern.png?v=67',
-            'stone-well': 'assets/images/decorations/stone-well.png?v=67',
-            'bamboo': 'assets/images/decorations/bamboo.png?v=67',
-            'rock': 'assets/images/decorations/rock.png?v=67',
-            'plum-tree': 'assets/images/decorations/plum-tree.png?v=67',
-            'lotus-pond': 'assets/images/decorations/lotus-pond.png?v=67',
-            // #3 装饰画风统一：玩家可放置装饰物纹理（与边缘装饰物统一为国风Q版画风）
-            'stone-bridge': 'assets/images/decorations/stone-bridge.jpg?v=74',
-            'wooden-pavilion': 'assets/images/decorations/wooden-pavilion.jpg?v=74',
-            'stone-lion': 'assets/images/decorations/stone-lion.jpg?v=74',
-            'red-lantern': 'assets/images/decorations/red-lantern.jpg?v=74'
+            'pine-tree': `assets/images/decorations/pine-tree.png?${V}`,
+            'willow-tree': `assets/images/decorations/willow-tree.png?${V}`,
+            'stone-lantern': `assets/images/decorations/stone-lantern.png?${V}`,
+            'stone-well': `assets/images/decorations/stone-well.png?${V}`,
+            'bamboo': `assets/images/decorations/bamboo.png?${V}`,
+            'rock': `assets/images/decorations/rock.png?${V}`,
+            'plum-tree': `assets/images/decorations/plum-tree.png?${V}`,
+            'lotus-pond': `assets/images/decorations/lotus-pond.png?${V}`,
+            'stone-bridge': `assets/images/decorations/stone-bridge.jpg?${V}`,
+            'wooden-pavilion': `assets/images/decorations/wooden-pavilion.jpg?${V}`,
+            'stone-lion': `assets/images/decorations/stone-lion.jpg?${V}`,
+            'red-lantern': `assets/images/decorations/red-lantern.jpg?${V}`
         };
         for (const [name, src] of Object.entries(decos)) {
             const img = new Image();
@@ -879,25 +891,28 @@ class IsometricMapEngine {
             if (!tex || !tex.complete || tex.naturalWidth === 0) continue;
 
             const { x, y } = this.tileToScreen(deco.col, deco.row);
-            const drawW = this.TILE_WIDTH * deco.scale * 1.3;
+            // 增大装饰物尺寸，让它们更醒目
+            const drawW = this.TILE_WIDTH * deco.scale * 1.6;
             const drawH = drawW * (tex.height / tex.width);
             const drawX = x - drawW / 2 + deco.offsetX;
             const drawY = y - drawH + this.TILE_HEIGHT / 2 + deco.offsetY;
 
             // 视锥剔除
-            if (drawX + drawW < 0 || drawX > this.canvas.width || drawY + drawH < 0 || drawY > this.canvas.height) continue;
+            if (drawX + drawW < -50 || drawX > this.canvas.width + 50 || drawY + drawH < -50 || drawY > this.canvas.height + 50) continue;
 
-            // 装饰物投影
+            // 装饰物投影（菱形接触阴影，与建筑风格统一）
             ctx.save();
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-            ctx.filter = 'blur(3px)';
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.filter = 'blur(2px)';
+            const shW = drawW * 0.35;
+            const shH = shW * 0.4;
             ctx.beginPath();
-            ctx.ellipse(x + deco.offsetX, y + this.TILE_HEIGHT / 2 + deco.offsetY, drawW * 0.3, drawW * 0.15, 0, 0, Math.PI * 2);
+            ctx.ellipse(x + deco.offsetX, y + this.TILE_HEIGHT / 2 + deco.offsetY + 2, shW, shH, 0, 0, Math.PI * 2);
             ctx.fill();
             ctx.filter = 'none';
             ctx.restore();
 
-            // 绘制装饰物
+            // 绘制装饰物（确保透明背景正确渲染）
             ctx.drawImage(tex, drawX, drawY, drawW, drawH);
         }
     }
