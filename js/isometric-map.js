@@ -718,44 +718,6 @@ class IsometricMapEngine {
             ctx.fill();
         }
         ctx.restore();
-
-        // === 围墙外竹林带（上下边缘） ===
-        ctx.save();
-        // 上边缘竹林剪影
-        ctx.fillStyle = 'rgba(60, 80, 50, 0.3)';
-        this._drawBambooSilhouette(ctx, w, h * 0.08, true);
-        // 下边缘竹林剪影
-        ctx.fillStyle = 'rgba(50, 70, 40, 0.35)';
-        this._drawBambooSilhouette(ctx, w, h * 0.92, false);
-        ctx.restore();
-
-        // === 水面波光（底部河流） ===
-        ctx.save();
-        const waterGrad = ctx.createLinearGradient(0, h * 0.88, 0, h);
-        waterGrad.addColorStop(0, 'rgba(100, 130, 150, 0.2)');
-        waterGrad.addColorStop(1, 'rgba(80, 110, 130, 0.35)');
-        ctx.fillStyle = waterGrad;
-        ctx.fillRect(0, h * 0.88, w, h * 0.12);
-        // 水面波纹
-        ctx.strokeStyle = 'rgba(180, 200, 210, 0.15)';
-        ctx.lineWidth = 1;
-        for (let i = 0; i < 5; i++) {
-            ctx.beginPath();
-            const y = h * 0.90 + i * (h * 0.02);
-            ctx.moveTo(0, y);
-            for (let x = 0; x < w; x += 20) {
-                ctx.lineTo(x, y + Math.sin(x * 0.02 + i) * 2);
-            }
-            ctx.stroke();
-        }
-        ctx.restore();
-
-        // === 暗角效果（四周加深，聚焦中心） ===
-        const vignette = ctx.createRadialGradient(w/2, h/2, Math.min(w, h) * 0.3, w/2, h/2, Math.max(w, h) * 0.75);
-        vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
-        vignette.addColorStop(1, 'rgba(50, 30, 15, 0.25)');
-        ctx.fillStyle = vignette;
-        ctx.fillRect(0, 0, w, h);
     }
 
     /**
