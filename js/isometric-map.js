@@ -656,36 +656,63 @@ class IsometricMapEngine {
         const w = this.canvas.width;
         const h = this.canvas.height;
 
-        // === 部落冲突/开心商店风格：草地纹理铺满整个画布 ===
-        // 先画草地底色渐变
-        const gradient = ctx.createLinearGradient(0, 0, 0, h);
-        gradient.addColorStop(0, '#4a8c3a');
-        gradient.addColorStop(0.4, '#5a9c4a');
-        gradient.addColorStop(0.7, '#6aa85a');
-        gradient.addColorStop(1, '#4a8c3a');
-        ctx.fillStyle = gradient;
+        // === 自然草地背景（部落冲突/开心商店风格） ===
+        // 1. 基础绿色渐变（中心亮、边缘暗，形成视觉焦点）
+        const cx = w / 2, cy = h * 0.45;
+        const radialGrad = ctx.createRadialGradient(cx, cy, Math.min(w, h) * 0.15, cx, cy, Math.max(w, h) * 0.75);
+        radialGrad.addColorStop(0, '#6db84e');
+        radialGrad.addColorStop(0.4, '#5aa83e');
+        radialGrad.addColorStop(0.7, '#4a9430');
+        radialGrad.addColorStop(1, '#3a7a22');
+        ctx.fillStyle = radialGrad;
         ctx.fillRect(0, 0, w, h);
 
-        // 用grass纹理平铺整个画布（模拟草地延伸到无限远）
+        // 2. 草地纹理（只画一层，低透明度，避免重复感）
         const grassTex = this._tileTextures && this._tileTextures.grass;
         if (grassTex && grassTex.complete && grassTex.naturalWidth > 0) {
-            const tileSize = 80;
-            ctx.globalAlpha = 0.6;
-            for (let y = 0; y < h; y += tileSize) {
-                for (let x = 0; x < w; x += tileSize) {
-                    ctx.drawImage(grassTex, x, y, tileSize, tileSize);
-                }
+            ctx.globalAlpha = 0.35;
+            // 随机偏移绘制几个大块，而不是网格平铺
+            const blobs = 8;
+            for (let i = 0; i < blobs; i++) {
+                const bx = (i / blobs) * w + Math.sin(i * 4.3) * w * 0.1;
+                const by = Math.sin(i * 2.7) * h * 0.3 + h * 0.4;
+                const bs = 200 + Math.sin(i * 3.1) * 80;
+                ctx.drawImage(grassTex, bx - bs / 2, by - bs / 2, bs, bs);
             }
             ctx.globalAlpha = 1;
         }
 
-        // === 远景：淡淡的树林剪影（顶部） ===
+        // 3. 随机草丛点缀（小绿点，增加层次感）
         ctx.save();
-        ctx.fillStyle = 'rgba(30, 50, 30, 0.25)';
-        for (let i = 0; i < 12; i++) {
-            const tx = (i / 12) * w + Math.sin(i * 3.7) * 30;
-            const ty = h * 0.05 + Math.sin(i * 2.3) * 8;
-            const tw = 60 + Math.sin(i * 5.1) * 20;
+        let seed = 42;
+        const rand = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+        for (let i = 0; i < 60; i++) {
+            const gx = rand() * w;
+            const gy = rand() * h;
+            const gs = 3 + rand() * 5;
+            const hue = 90 + rand() * 30;
+            const lit = 35 + rand() * 20;
+            ctx.fillStyle = `hsla(${hue}, 50%, ${lit}%, 0.4)`;
+            ctx.beginPath();
+            ctx.ellipse(gx, gy, gs, gs * 0.6, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+
+        // 4. 暗角（vignette，让中心更突出）
+        const vignette = ctx.createRadialGradient(cx, cy, Math.min(w, h) * 0.3, cx, cy, Math.max(w, h) * 0.7);
+        vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        vignette.addColorStop(1, 'rgba(0, 0, 0, 0.25)');
+        ctx.fillStyle = vignette;
+        ctx.fillRect(0, 0, w, h);
+
+        // 5. 远景树林剪影（顶部，淡淡的）
+        ctx.save();
+        ctx.fillStyle = 'rgba(25, 50, 20, 0.3)';
+        for (let i = 0; i < 10; i++) {
+            const tx = (i / 10) * w + Math.sin(i * 3.7) * 30;
+            const ty = h * 0.04 + Math.sin(i * 2.3) * 6;
+            const tw = 50 + Math.sin(i * 5.1) * 15;
             ctx.beginPath();
             ctx.arc(tx, ty, tw, 0, Math.PI * 2);
             ctx.fill();
@@ -795,7 +822,7 @@ class IsometricMapEngine {
     _loadDecorations() {
         if (this._decoTextures) return;
         this._decoTextures = {};
-        const V = 'v83';
+        const V = 'v84';
         const decos = {
             'pine-tree': `assets/images/decorations/pine-tree.png?${V}`,
             'willow-tree': `assets/images/decorations/willow-tree.png?${V}`,
@@ -805,10 +832,10 @@ class IsometricMapEngine {
             'rock': `assets/images/decorations/rock.png?${V}`,
             'plum-tree': `assets/images/decorations/plum-tree.png?${V}`,
             'lotus-pond': `assets/images/decorations/lotus-pond.png?${V}`,
-            'stone-bridge': `assets/images/decorations/stone-bridge.jpg?${V}`,
-            'wooden-pavilion': `assets/images/decorations/wooden-pavilion.jpg?${V}`,
-            'stone-lion': `assets/images/decorations/stone-lion.jpg?${V}`,
-            'red-lantern': `assets/images/decorations/red-lantern.jpg?${V}`
+            'stone-bridge': `assets/images/decorations/stone-bridge.png?${V}`,
+            'wooden-pavilion': `assets/images/decorations/wooden-pavilion.png?${V}`,
+            'stone-lion': `assets/images/decorations/stone-lion.png?${V}`,
+            'red-lantern': `assets/images/decorations/red-lantern.png?${V}`
         };
         for (const [name, src] of Object.entries(decos)) {
             const img = new Image();
