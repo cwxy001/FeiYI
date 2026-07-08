@@ -10,8 +10,8 @@ const UI = {
      * @param {string} modalId - 弹窗元素ID
      */
     showModal(modalId) {
-        // 先关闭所有其他弹窗（互斥）
-        document.querySelectorAll('.modal').forEach(m => {
+        // 先关闭所有其他弹窗（互斥）—— 同时处理 modal 和 modal-panel
+        document.querySelectorAll('.modal, .modal-panel').forEach(m => {
             if (m.id !== modalId) {
                 m.classList.add('hidden');
             }

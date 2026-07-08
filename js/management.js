@@ -470,6 +470,18 @@ class Management {
         }
     }
 
+    /** 关闭所有弹窗（互斥），保留指定的面板 */
+    _closeAllPanels(exceptId) {
+        const panelIds = ['build-panel', 'collection-panel', 'settings-panel',
+            'daily-tasks-panel', 'achievements-panel', 'leaderboard-panel', 'pvp-panel'];
+        panelIds.forEach(id => {
+            if (id !== exceptId) {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
+            }
+        });
+    }
+
     /**
      * 显示建造面板
      */
@@ -2002,6 +2014,7 @@ class Management {
 
     /** 打开每日任务面板 */
     openDailyTasksPanel() {
+        this._closeAllPanels('daily-tasks-panel');
         const panel = document.getElementById('daily-tasks-panel');
         if (!panel) return;
         panel.classList.remove('hidden');
@@ -2011,6 +2024,7 @@ class Management {
 
     /** 打开成就面板 */
     openAchievementsPanel() {
+        this._closeAllPanels('achievements-panel');
         const panel = document.getElementById('achievements-panel');
         if (!panel) return;
         panel.classList.remove('hidden');
@@ -2025,6 +2039,7 @@ class Management {
 
     /** 打开排行榜面板 */
     openLeaderboardPanel() {
+        this._closeAllPanels('leaderboard-panel');
         const panel = document.getElementById('leaderboard-panel');
         if (!panel) return;
         panel.classList.remove('hidden');
@@ -2296,6 +2311,7 @@ class Management {
 
     /** 打开PVP面板 */
     openPvpPanel() {
+        this._closeAllPanels('pvp-panel');
         const panel = document.getElementById('pvp-panel');
         if (!panel) return;
         panel.classList.remove('hidden');
